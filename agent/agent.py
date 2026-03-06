@@ -28,11 +28,17 @@ def setup_logging(level: str) -> None:
     )
 
 
-def build_payload(server_id: str, result_df) -> dict:
-    """Build the JSON payload to send to the main server."""
-    results = []
+def build_payload(server_id: str, result_df, max_ips: int) -> dict:
+    """Build the JSON payload to send to the main server.
 
-    for _, row in result_df.iterrows():
+    Results are sorted by risk_score descending (HIGH → LOW) and
+    limited to the top ``max_ips`` entries.
+    """
+    # Sort by risk_score descending and take top N
+    top_results = result_df.sort_values("risk_score", ascending=False).head(max_ips)
+
+    results = []
+    for _, row in top_results.iterrows():
         results.append({
             "ip": row["ip"],
             "request_count": int(row["request_count"]),
@@ -75,7 +81,8 @@ def send_to_server(
             )
             response = requests.post(
                 url,
-                data=json.dumps(payload),
+                # data=json.dumps(payload),
+                json=payload,
                 headers=headers,
                 timeout=30,
             )
@@ -162,8 +169,11 @@ def main():
         display_val = "****" if key == "auth_token" and value else value
         logger.info("  %s: %s", key, display_val)
 
-    # Initialize log reader
-    reader = LogReader(config["log_path"])
+    # Initialize log reader with disk accumulation
+    reader = LogReader(
+        config["log_path"],
+        max_size_mb=config["accumulated_log_max_size_mb"],
+    )
     api_url = f"{config['server_url'].rstrip('/')}{config['api_endpoint']}"
     is_first_run = True
 
@@ -176,11 +186,24 @@ def main():
             new_entries = reader.read_new_lines()
             buffer = reader.get_buffer()
 
+            analysis_entries = None
+
             if is_first_run:
-                # First run: analyze all accumulated log data
-                logger.info("First run — analyzing full buffer (%d entries)", len(buffer))
-                analysis_entries = buffer
-                is_first_run = False
+                # First run: enforce minimum log lines
+                if reader.get_buffer_size() < config["min_log_lines"]:
+                    logger.info(
+                        "Waiting for minimum log lines: %d/%d collected",
+                        reader.get_buffer_size(),
+                        config["min_log_lines"],
+                    )
+                else:
+                    # Enough data collected — run first analysis on full buffer
+                    logger.info(
+                        "First run — analyzing full buffer (%d entries)",
+                        len(buffer),
+                    )
+                    analysis_entries = buffer
+                    is_first_run = False
             else:
                 # Subsequent runs: analyze only the last 5-minute window
                 analysis_entries = filter_window(
@@ -193,31 +216,37 @@ def main():
                     len(buffer),
                 )
 
-            # Run analysis pipeline
-            result = run_analysis(
-                analysis_entries,
-                config["n_estimators"],
-                config["contamination"],
-            )
-
-            if result is not None and not result.empty:
-                # Build and send payload
-                payload = build_payload(config["server_id"], result)
-
-                logger.info(
-                    "Analysis complete: %d IPs analyzed, sending to server...",
-                    len(result),
+            # Only run analysis if we have entries to analyze
+            if analysis_entries is not None:
+                result = run_analysis(
+                    analysis_entries,
+                    config["n_estimators"],
+                    config["contamination"],
                 )
 
-                send_to_server(
-                    api_url,
-                    payload,
-                    auth_token=config["auth_token"],
-                    retry_max=config["retry_max"],
-                    retry_backoff=config["retry_backoff"],
-                )
-            else:
-                logger.info("No results to send this cycle")
+                if result is not None and not result.empty:
+                    # Build and send payload (sorted HIGH → LOW, top N IPs)
+                    payload = build_payload(
+                        config["server_id"],
+                        result,
+                        max_ips=config["max_ips_per_report"],
+                    )
+
+                    logger.info(
+                        "Analysis complete: %d IPs analyzed, sending top %d to server...",
+                        len(result),
+                        len(payload["results"]),
+                    )
+
+                    send_to_server(
+                        api_url,
+                        payload,
+                        auth_token=config["auth_token"],
+                        retry_max=config["retry_max"],
+                        retry_backoff=config["retry_backoff"],
+                    )
+                else:
+                    logger.info("No results to send this cycle")
 
         except KeyboardInterrupt:
             logger.info("Agent stopped by user")

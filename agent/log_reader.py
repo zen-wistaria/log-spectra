@@ -1,12 +1,15 @@
 """
 Log reader module using pygtail for incremental nginx log reading.
 Supports logrotate and maintains an in-memory buffer for accumulated analysis.
+Integrates with LogAccumulator for disk-based persistence.
 """
 
 import re
 import logging
 from datetime import datetime
 from pygtail import Pygtail
+
+from log_accumulator import LogAccumulator
 
 logger = logging.getLogger(__name__)
 
@@ -53,21 +56,57 @@ class LogReader:
     Reads nginx access logs incrementally using pygtail.
     Maintains an in-memory buffer of all parsed log entries.
     Supports logrotate — pygtail tracks file offsets automatically.
+    Uses LogAccumulator for disk persistence across log rotations.
     """
 
-    def __init__(self, log_path: str):
+    def __init__(self, log_path: str, max_size_mb: int = 200):
         self.log_path = log_path
         self.offset_file = log_path + ".offset"
         self.buffer: list[dict] = []
-        logger.info("LogReader initialized for: %s", log_path)
+
+        # Initialize disk-based accumulator
+        self._accumulator = LogAccumulator(log_path, max_size_mb)
+
+        # Restore buffer from accumulated log on startup
+        self._restore_from_accumulated()
+
+        logger.info(
+            "LogReader initialized for: %s (buffer restored: %d entries)",
+            log_path,
+            len(self.buffer),
+        )
+
+    def _restore_from_accumulated(self) -> None:
+        """
+        Restore the in-memory buffer from the accumulated log file.
+        Called once during initialization to recover data after restart.
+        """
+        accumulated_lines = self._accumulator.read_all_lines()
+        if not accumulated_lines:
+            return
+
+        restored_count = 0
+        for line in accumulated_lines:
+            entry = parse_log_line(line)
+            if entry:
+                self.buffer.append(entry)
+                restored_count += 1
+
+        logger.info(
+            "Restored %d entries from accumulated log (%d lines parsed)",
+            restored_count,
+            len(accumulated_lines),
+        )
 
     def read_new_lines(self) -> list[dict]:
         """
         Read new log lines since last read.
         Returns list of newly parsed log entries.
-        Also appends them to the internal buffer.
+        Also appends them to the internal buffer and persists
+        raw lines to the accumulated log file.
         """
         new_entries = []
+        raw_lines = []
 
         try:
             pygtail = Pygtail(self.log_path, offset_file=self.offset_file)
@@ -77,6 +116,7 @@ class LogReader:
                 if not line:
                     continue
 
+                raw_lines.append(line)
                 entry = parse_log_line(line)
                 if entry:
                     new_entries.append(entry)
@@ -94,6 +134,11 @@ class LogReader:
                 len(self.buffer),
             )
 
+        # Persist raw lines to disk (even if some failed parsing,
+        # so we don't lose data for future re-parsing)
+        if raw_lines:
+            self._accumulator.append_lines(raw_lines)
+
         return new_entries
 
     def get_buffer(self) -> list[dict]:
@@ -101,5 +146,5 @@ class LogReader:
         return self.buffer
 
     def get_buffer_size(self) -> int:
-        """Return the current buffer size."""
+        """Return the current buffer size (number of entries)."""
         return len(self.buffer)

@@ -25,6 +25,20 @@ contamination: 0.02
 # Analysis interval in seconds (default: 300 = 5 minutes)
 analysis_interval: 300
 
+# Minimum log lines required before first analysis is run.
+# Agent will wait until at least this many log entries are accumulated.
+min_log_lines: 100
+
+# Maximum size for accumulated log file in MB (default: 200, max: 500).
+# When the file exceeds this size, oldest entries are trimmed automatically.
+# The accumulated log persists across log rotations.
+accumulated_log_max_size_mb: 200
+
+# Number of top-risk IPs to include in each report sent to the server.
+# IPs are sorted by risk score (HIGH → LOW) before selecting.
+# Default: 10, max: 50
+max_ips_per_report: 10
+
 # Retry settings for HTTP requests
 retry_max: 3
 retry_backoff: 2
