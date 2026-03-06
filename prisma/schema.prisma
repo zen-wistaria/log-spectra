@@ -12,16 +12,16 @@ datasource db {
 }
 
 model Agent {
-  id          String   @id @default(cuid())
+  id          String    @id @default(cuid())
   name        String
   description String?
   hostname    String?
   ip_address  String?
   os          String?
-  status      String   @default("inactive") // active, inactive, offline
+  status      Boolean   @default(false)
   last_seen   DateTime?
-  created_at  DateTime @default(now())
-  updated_at  DateTime @updatedAt
+  created_at  DateTime  @default(now())
+  updated_at  DateTime  @updatedAt
 
   tokens       ApiToken[]
   anomaly_logs AnomalyLog[]
@@ -39,7 +39,7 @@ model AnomalyLog {
   unique_endpoint_ratio Float    @default(0)
   risk_score            Float    @default(0)
   risk_category         String   @default("LOW")
-  risk_reasons          String   @default("[]") // JSON array stored as string
+  risk_reasons          Json     @default("[]")
   created_at            DateTime @default(now())
   updated_at            DateTime @updatedAt
 
@@ -50,13 +50,13 @@ model AnomalyLog {
 }
 
 model ApiToken {
-  id         Int      @id @default(autoincrement())
+  id         Int       @id @default(autoincrement())
   agent_id   String
-  token      String   @unique
-  is_active  Boolean  @default(true)
+  token      String    @unique
+  is_active  Boolean   @default(true)
   last_used  DateTime?
-  created_at DateTime @default(now())
-  updated_at DateTime @updatedAt
+  created_at DateTime  @default(now())
+  updated_at DateTime  @updatedAt
 
   agent Agent @relation(fields: [agent_id], references: [id], onDelete: Cascade)
 
