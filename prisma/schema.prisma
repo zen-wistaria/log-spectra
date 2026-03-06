@@ -11,9 +11,27 @@ datasource db {
   provider = "postgresql"
 }
 
+model Agent {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  hostname    String?
+  ip_address  String?
+  os          String?
+  status      String   @default("inactive") // active, inactive, offline
+  last_seen   DateTime?
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
+
+  tokens       ApiToken[]
+  anomaly_logs AnomalyLog[]
+
+  @@map("agents")
+}
+
 model AnomalyLog {
   id                    Int      @id @default(autoincrement())
-  server_id             String   
+  agent_id              String
   ip                    String
   request_count         Int      @default(0)
   error_count           Int      @default(0)
@@ -25,19 +43,22 @@ model AnomalyLog {
   created_at            DateTime @default(now())
   updated_at            DateTime @updatedAt
 
-  @@unique([server_id, ip])
+  agent Agent @relation(fields: [agent_id], references: [id], onDelete: Cascade)
+
+  @@unique([agent_id, ip])
   @@map("anomaly_logs")
 }
 
 model ApiToken {
   id         Int      @id @default(autoincrement())
+  agent_id   String
   token      String   @unique
-  label      String   // Descriptive name, e.g. "Server-01 Agent"
-  server_id  String?  // Optional: restrict token to a specific server
   is_active  Boolean  @default(true)
   last_used  DateTime?
   created_at DateTime @default(now())
   updated_at DateTime @updatedAt
+
+  agent Agent @relation(fields: [agent_id], references: [id], onDelete: Cascade)
 
   @@map("api_tokens")
 }
