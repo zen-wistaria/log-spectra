@@ -2,10 +2,42 @@
 // learn more about it in the docs: https://pris.ly/d/prisma-schema
 
 generator client {
-  provider = "prisma-client"
+  provider        = "prisma-client-js"
   previewFeatures = ["relationJoins"]
+  binaryTargets   = ["linux-musl", "native", "debian-openssl-3.0.x"]
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
+}
+
+model AnomalyLog {
+  id                    Int      @id @default(autoincrement())
+  server_id             String   
+  ip                    String
+  request_count         Int      @default(0)
+  error_count           Int      @default(0)
+  request_per_second    Float    @default(0)
+  unique_endpoint_ratio Float    @default(0)
+  risk_score            Float    @default(0)
+  risk_category         String   @default("LOW")
+  risk_reasons          String   @default("[]") // JSON array stored as string
+  created_at            DateTime @default(now())
+  updated_at            DateTime @updatedAt
+
+  @@unique([server_id, ip])
+  @@map("anomaly_logs")
+}
+
+model ApiToken {
+  id         Int      @id @default(autoincrement())
+  token      String   @unique
+  label      String   // Descriptive name, e.g. "Server-01 Agent"
+  server_id  String?  // Optional: restrict token to a specific server
+  is_active  Boolean  @default(true)
+  last_used  DateTime?
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  @@map("api_tokens")
 }

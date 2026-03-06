@@ -8,6 +8,8 @@
     "start": "next start",
     "lint": "biome check",
     "format": "biome format --write",
+    "db:migrate": "bunx prisma migrate deploy",
+    "db:seed": "bunx prisma db seed",
     "prepare": "husky"
   },
   "lint-staged": {
