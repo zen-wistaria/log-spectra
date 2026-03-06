@@ -26,3 +26,5 @@ backup_app
 /prisma/*.db
 *.db
 build
+
+agent
