@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 
+// ── Types ───────────────────────────────────────────────────
+
 interface AnalysisResult {
   ip: string;
   request_count: number;
@@ -18,9 +20,13 @@ interface AnalysisPayload {
   results: AnalysisResult[];
 }
 
-async function authenticateRequest(
-  request: Request,
-): Promise<{ valid: boolean; error?: string; serverId?: string }> {
+// ── Auth Helper ─────────────────────────────────────────────
+
+async function authenticateRequest(request: Request): Promise<{
+  valid: boolean;
+  error?: string;
+  agentId?: string;
+}> {
   const authHeader = request.headers.get("Authorization");
 
   if (!authHeader || !authHeader.startsWith("Bearer ")) {
@@ -28,13 +34,13 @@ async function authenticateRequest(
   }
 
   const token = authHeader.replace("Bearer ", "").trim();
-
   if (!token) {
     return { valid: false, error: "Empty token" };
   }
 
   const apiToken = await prisma.apiToken.findUnique({
     where: { token },
+    include: { agent: true },
   });
 
   if (!apiToken) {
@@ -45,14 +51,23 @@ async function authenticateRequest(
     return { valid: false, error: "Token is deactivated" };
   }
 
-  // Update last_used timestamp
+  if (apiToken.agent.status === "deleted") {
+    return { valid: false, error: "Agent has been deleted" };
+  }
+
+  // Update token last_used
   await prisma.apiToken.update({
     where: { id: apiToken.id },
     data: { last_used: new Date() },
   });
 
-  return { valid: true, serverId: apiToken.server_id ?? undefined };
+  return {
+    valid: true,
+    agentId: apiToken.agent.id,
+  };
 }
+
+// ── POST Handler ────────────────────────────────────────────
 
 export async function POST(request: Request) {
   try {
@@ -76,8 +91,8 @@ export async function POST(request: Request) {
       );
     }
 
-    // If token is restricted to a specific server_id, enforce it
-    if (auth.serverId && auth.serverId !== body.server_id) {
+    // Enforce: token must belong to the agent with this server_id
+    if (auth.agentId !== body.server_id) {
       return NextResponse.json(
         {
           status: "error",
@@ -123,19 +138,21 @@ export async function POST(request: Request) {
       }
     }
 
-    // 5. Upsert each result (accumulate counts, update other fields)
-    const operations = body.results.map((result) => {
+    const agentId = auth.agentId as string;
+
+    // 5. Upsert each result + update agent status
+    const upsertOps = body.results.map((result) => {
       const riskReasonsJson = JSON.stringify(result.risk_reasons || []);
 
       return prisma.anomalyLog.upsert({
         where: {
-          server_id_ip: {
-            server_id: body.server_id,
+          agent_id_ip: {
+            agent_id: agentId,
             ip: result.ip,
           },
         },
         create: {
-          server_id: body.server_id,
+          agent_id: agentId,
           ip: result.ip,
           request_count: result.request_count,
           error_count: result.error_count ?? 0,
@@ -157,7 +174,16 @@ export async function POST(request: Request) {
       });
     });
 
-    await prisma.$transaction(operations);
+    // Update agent last_seen and status
+    const updateAgent = prisma.agent.update({
+      where: { id: agentId },
+      data: {
+        status: "active",
+        last_seen: new Date(),
+      },
+    });
+
+    await prisma.$transaction([...upsertOps, updateAgent]);
 
     return NextResponse.json({ status: "ok" });
   } catch (error) {
