@@ -22,21 +22,23 @@ export default function Providers({ children }: PropsWithChildren) {
       enableSystem
       disableTransitionOnChange
     >
-      <Toaster richColors position="top-center" />
-      <TopLoader />
-      <QueryClientProvider client={queryClient}>
-        <NuqsAdapter>
-          <TooltipProvider>{children}</TooltipProvider>
-        </NuqsAdapter>
-        <TanStackDevtools
-          plugins={[
-            {
-              name: "TanStack Query",
-              render: <ReactQueryDevtoolsPanel />,
-            },
-          ]}
-        />
-      </QueryClientProvider>
+      <TooltipProvider>
+        <Toaster richColors position="top-center" />
+        <TopLoader />
+        <QueryClientProvider client={queryClient}>
+          <NuqsAdapter>
+            <TooltipProvider>{children}</TooltipProvider>
+          </NuqsAdapter>
+          <TanStackDevtools
+            plugins={[
+              {
+                name: "TanStack Query",
+                render: <ReactQueryDevtoolsPanel />,
+              },
+            ]}
+          />
+        </QueryClientProvider>
+      </TooltipProvider>
     </ThemeProvider>
   );
 }
