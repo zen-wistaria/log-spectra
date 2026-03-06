@@ -1,0 +1,33 @@
+# ============================================
+# Log Anomaly Detection Agent — Configuration
+# ============================================
+
+# Path to nginx access log file
+log_path: "/var/log/nginx/access.log"
+
+# Main server base URL (where the Next.js app is running)
+server_url: "https://domain.com"
+
+# API endpoint path on the main server
+api_endpoint: "/api/log-analysis"
+
+# Unique identifier for this server (don't change after run)
+server_id: "server-01"
+
+# Bearer token for API authentication
+# Generate this from the main server and paste here
+auth_token: "your-secret-token-here"
+
+# Isolation Forest parameters
+n_estimators: 200
+contamination: 0.02
+
+# Analysis interval in seconds (default: 300 = 5 minutes)
+analysis_interval: 300
+
+# Retry settings for HTTP requests
+retry_max: 3
+retry_backoff: 2
+
+# Logging level: DEBUG, INFO, WARNING, ERROR
+log_level: "INFO"

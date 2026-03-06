@@ -1,0 +1,40 @@
+{
+  "server_id": "server-01",
+  "timestamp": "2026-03-03T03:10:00Z",
+  "results": [
+    {
+      "ip": "185.16.39.146",
+      "request_count": 240,
+      "error_count": 60,
+      "request_per_second": 12.5,
+      "unique_endpoint_ratio": 0.9,
+      "risk_score": 87,
+      "risk_category": "HIGH",
+      "risk_reasons": [
+        "Burst traffic",
+        "High error rate",
+        "High endpoint variation"
+      ]
+    },
+    {
+      "ip": "10.51.51.42",
+      "request_count": 15,
+      "error_count": 0,
+      "request_per_second": 0.5,
+      "unique_endpoint_ratio": 0.3,
+      "risk_score": 12,
+      "risk_category": "LOW",
+      "risk_reasons": ["Normal pattern"]
+    },
+    {
+      "ip": "192.168.1.100",
+      "request_count": 85,
+      "error_count": 25,
+      "request_per_second": 3.2,
+      "unique_endpoint_ratio": 0.75,
+      "risk_score": 55,
+      "risk_category": "MEDIUM",
+      "risk_reasons": ["High error rate", "High endpoint variation"]
+    }
+  ]
+}
