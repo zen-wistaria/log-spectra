@@ -18,6 +18,8 @@ model Agent {
   hostname    String?
   ip_address  String?
   os          String?
+  machine_id  String?   @map("machine_id")
+  version     String?
   status      Boolean   @default(false)
   last_seen   DateTime?
   created_at  DateTime  @default(now())
