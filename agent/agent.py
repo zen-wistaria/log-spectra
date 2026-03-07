@@ -14,6 +14,7 @@ from config import load_config
 from log_reader import LogReader
 from analyzer import feature_engineering, detect_anomalies
 from risk_scoring import calculate_risk
+from system_info import collect_system_info
 
 logger = logging.getLogger("agent")
 
@@ -28,11 +29,15 @@ def setup_logging(level: str) -> None:
     )
 
 
-def build_payload(server_id: str, result_df, max_ips: int) -> dict:
+def build_payload(server_id: str, result_df, max_ips: int, sys_info: dict) -> dict:
     """Build the JSON payload to send to the main server.
 
     Results are sorted by risk_score descending (HIGH → LOW) and
     limited to the top ``max_ips`` entries.
+
+    ``sys_info`` must contain the keys returned by
+    :func:`system_info.collect_system_info`:
+    ``version``, ``machine_id``, ``os``, ``hostname``, ``ip_address``.
     """
     # Sort by risk_score descending and take top N
     top_results = result_df.sort_values("risk_score", ascending=False).head(max_ips)
@@ -52,6 +57,11 @@ def build_payload(server_id: str, result_df, max_ips: int) -> dict:
 
     return {
         "server_id": server_id,
+        "machine_id": sys_info["machine_id"],
+        "version": sys_info["version"],
+        "os": sys_info["os"],
+        "hostname": sys_info["hostname"],
+        "ip_address": sys_info["ip_address"],
         "timestamp": datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ"),
         "results": results,
     }
@@ -169,6 +179,10 @@ def main():
         display_val = "****" if key == "auth_token" and value else value
         logger.info("  %s: %s", key, display_val)
 
+    # Collect system info once (public IP lookup happens here)
+    logger.info("Collecting system information...")
+    sys_info = collect_system_info()
+
     # Initialize log reader with disk accumulation
     reader = LogReader(
         config["log_path"],
@@ -230,6 +244,7 @@ def main():
                         config["server_id"],
                         result,
                         max_ips=config["max_ips_per_report"],
+                        sys_info=sys_info,
                     )
 
                     logger.info(
