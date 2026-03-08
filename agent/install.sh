@@ -38,6 +38,7 @@ cp "$CURRENT_DIR/log_accumulator.py" "$AGENT_DIR/"
 cp "$CURRENT_DIR/analyzer.py" "$AGENT_DIR/"
 cp "$CURRENT_DIR/risk_scoring.py" "$AGENT_DIR/"
 cp "$CURRENT_DIR/requirements.txt" "$AGENT_DIR/"
+cp "$CURRENT_DIR/system_info.py" "$AGENT_DIR/"
 
 # Copy config if not already present (don't overwrite existing config)
 if [ ! -f "$AGENT_DIR/config.yaml" ]; then
