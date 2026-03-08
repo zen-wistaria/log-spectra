@@ -1,15 +1,6 @@
 "use client";
 
-import {
-  ChartBarDecreasing,
-  HandHelping,
-  HatGlasses,
-  LayoutGrid,
-  Search,
-  Settings,
-  ShieldCheck,
-  Users,
-} from "lucide-react";
+import { ShieldCheck } from "lucide-react";
 import Link from "next/link";
 import type * as React from "react";
 import { NavMain } from "@/components/nav-main";
@@ -24,53 +15,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
-
-const data = {
-  user: {
-    name: "shadcn",
-    email: "m@example.com",
-    avatar: "/avatars/shadcn.jpg",
-  },
-  navMain: [
-    {
-      title: "Dashboard",
-      url: "/dashboard",
-      icon: LayoutGrid,
-    },
-    {
-      title: "Agent",
-      url: "/agents",
-      icon: HatGlasses,
-    },
-    {
-      title: "Anomalies",
-      url: "/results",
-      icon: ChartBarDecreasing,
-    },
-    {
-      title: "Users",
-      url: "#",
-      icon: Users,
-    },
-  ],
-  navSecondary: [
-    {
-      title: "Settings",
-      url: "/settings",
-      icon: Settings,
-    },
-    {
-      title: "Get Help",
-      url: "#",
-      icon: HandHelping,
-    },
-    {
-      title: "Search",
-      url: "#",
-      icon: Search,
-    },
-  ],
-};
+import { menu } from "@/lib/menu";
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   return (
@@ -91,11 +36,11 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         </SidebarMenu>
       </SidebarHeader>
       <SidebarContent>
-        <NavMain items={data.navMain} />
-        <NavSecondary items={data.navSecondary} className="mt-auto" />
+        <NavMain items={menu.navMain} />
+        <NavSecondary items={menu.navSecondary} className="mt-auto" />
       </SidebarContent>
       <SidebarFooter>
-        <NavUser user={data.user} />
+        <NavUser user={menu.user} />
       </SidebarFooter>
     </Sidebar>
   );
