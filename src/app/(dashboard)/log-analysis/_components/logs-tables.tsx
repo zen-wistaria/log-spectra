@@ -91,6 +91,7 @@ export function LogsTable() {
               id: false,
               "agent-ip": false,
               "agent-hostname": false,
+              agent_id: false,
             }}
             defaultSorting={[{ id: "updated_at", desc: true }]}
             enableSearch={true}

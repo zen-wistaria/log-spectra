@@ -50,10 +50,11 @@ export const getColumns = (): ColumnDef<IColumns>[] => [
         disableColumnHide={false}
       />
     ),
-    cell: ({ row }) => <div className="text-xs">{row.original.agent_id}</div>,
+    cell: ({ row }) => (
+      <div className="text-xs font-mono">{row.original.agent_id}</div>
+    ),
     enableHiding: true,
     enableSorting: true,
-    enableColumnFilter: true,
   },
   {
     id: "agent-name",
@@ -68,7 +69,9 @@ export const getColumns = (): ColumnDef<IColumns>[] => [
         disableColumnHide={false}
       />
     ),
-    cell: ({ row }) => <div className="text-xs">{row.original.agent.name}</div>,
+    cell: ({ row }) => (
+      <div className="text-xs font-mono">{row.original.agent.name}</div>
+    ),
     enableHiding: true,
     enableSorting: true,
   },
@@ -86,7 +89,9 @@ export const getColumns = (): ColumnDef<IColumns>[] => [
       />
     ),
     cell: ({ row }) => (
-      <div className="text-xs">{row.original.agent.hostname}</div>
+      <div className="text-xs text-muted-foreground font-mono">
+        {row.original.agent.hostname}
+      </div>
     ),
     enableHiding: true,
     enableSorting: true,
@@ -105,7 +110,9 @@ export const getColumns = (): ColumnDef<IColumns>[] => [
       />
     ),
     cell: ({ row }) => (
-      <div className="text-xs">{row.original.agent.ip_address ?? "N/A"}</div>
+      <div className="text-xs text-muted-foreground">
+        {row.original.agent.ip_address ?? "N/A"}
+      </div>
     ),
     enableHiding: true,
     enableSorting: true,
@@ -114,16 +121,15 @@ export const getColumns = (): ColumnDef<IColumns>[] => [
     id: "ip",
     accessorKey: "ip",
     meta: {
-      label: "Suspicious IP",
+      label: "Reported IP",
     },
     header: ({ column }) => (
       <DataTableColumnHeader
         column={column}
-        title="Suspicious IP"
+        title="Reported IP"
         disableColumnHide={true}
       />
     ),
-    enableColumnFilter: false,
     enableSorting: true,
     cell: ({ row }) => {
       const low = row.original.risk_category.toLowerCase() === "low";
@@ -141,7 +147,7 @@ export const getColumns = (): ColumnDef<IColumns>[] => [
                   : "gray-subtle"
           }
         >
-          <div className="text-xs">{row.original.ip}</div>
+          <div className="font-mono text-xs">{row.original.ip}</div>
         </Badge>
       );
     },
