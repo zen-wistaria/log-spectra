@@ -1,6 +1,6 @@
 import type { Prisma } from "@prisma/client";
 import prisma from "@/lib/prisma";
-import type { AnomalyCreate, AnomalyUpdate } from "@/schema/anomaly.schema";
+import type { AnomalyUpdate } from "@/schema/anomaly.schema";
 
 export interface GetAnomaliesParams {
   page: number;
@@ -92,6 +92,73 @@ export class AnomalyService {
     return await prisma.anomalyLog.count({
       where: {
         agent_id: agentId,
+      },
+    });
+  }
+
+  static async getTop10SuspiciousIP() {
+    // Try HIGH first, fallback to MEDIUM if none found
+    const highResults = await prisma.anomalyLog.findMany({
+      where: { risk_category: { equals: "HIGH", mode: "insensitive" } },
+      orderBy: { risk_score: "desc" },
+      take: 10,
+      select: {
+        ip: true,
+        risk_score: true,
+        risk_category: true,
+        request_count: true,
+        error_count: true,
+        updated_at: true,
+      },
+    });
+    if (highResults.length > 0) return highResults;
+
+    return await prisma.anomalyLog.findMany({
+      where: { risk_category: { equals: "MEDIUM", mode: "insensitive" } },
+      orderBy: { risk_score: "desc" },
+      take: 10,
+      select: {
+        ip: true,
+        risk_score: true,
+        risk_category: true,
+        request_count: true,
+        error_count: true,
+        updated_at: true,
+      },
+    });
+  }
+
+  static async getDashboardStats() {
+    const [totalLogs, activeAgents, totalAgents, highRiskIps] =
+      await Promise.all([
+        prisma.anomalyLog.count(),
+        prisma.agent.count({ where: { status: true } }),
+        prisma.agent.count(),
+        prisma.anomalyLog.count({
+          where: { risk_category: { equals: "HIGH", mode: "insensitive" } },
+        }),
+      ]);
+    return { totalLogs, activeAgents, totalAgents, highRiskIps };
+  }
+
+  static async countHighriskIp() {
+    return await prisma.anomalyLog.count({
+      where: {
+        risk_category: {
+          in: ["high"],
+        },
+      },
+    });
+  }
+
+  static async latestLogsReport() {
+    return await prisma.anomalyLog.findMany({
+      take: 10,
+      orderBy: {
+        created_at: "desc",
+      },
+      include: {
+        agent: true,
       },
     });
   }

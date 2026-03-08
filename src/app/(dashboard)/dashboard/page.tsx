@@ -1,27 +1,42 @@
 import type { Metadata } from "next";
 import { LatestAgentReports } from "@/components/dashboard/latest-agent-reports";
 import { TopSuspiciousIp } from "@/components/dashboard/top-suspicious-ip";
+import { AnomalyService } from "@/services/anomaly.service";
 
 export const metadata: Metadata = {
   title: "Dashboard — LogGuard",
   description: "Server log anomaly detection dashboard",
 };
 
-export default function DashboardPage() {
+export default async function DashboardPage() {
+  const stats = await AnomalyService.getDashboardStats();
+
   return (
     <div className="flex flex-col gap-4 py-4 md:gap-6 md:py-6 px-4 lg:px-6">
       <div className="space-y-8">
         {/* Summary cards */}
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <SummaryCard title="Total Logs" value="176,040" delta="+12.4%" />
-          <SummaryCard title="Active Agents" value="4" delta="of 5" />
           <SummaryCard
-            title="Anomalies Detected"
-            value="234"
-            delta="+8.1%"
+            title="Total Anomaly Logs"
+            value={stats.totalLogs.toLocaleString()}
+            delta="from database"
+          />
+          <SummaryCard
+            title="Active Agents"
+            value={stats.activeAgents.toLocaleString()}
+            delta={`of ${stats.totalAgents} agents`}
+          />
+          <SummaryCard
+            title="High Risk IPs"
+            value={stats.highRiskIps.toLocaleString()}
+            delta="currently flagged HIGH"
             variant="danger"
           />
-          <SummaryCard title="High Risk IPs" value="7" delta="-2 from last" />
+          <SummaryCard
+            title="Total Agents"
+            value={stats.totalAgents.toLocaleString()}
+            delta={`${stats.totalAgents - stats.activeAgents} offline`}
+          />
         </div>
 
         {/* Suspicious IPs */}

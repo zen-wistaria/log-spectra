@@ -80,4 +80,20 @@ export class AgentService {
   static async total() {
     return await prisma.agent.count();
   }
+
+  static async getActiveAgents() {
+    return await prisma.agent.count({
+      where: {
+        status: true,
+      },
+    });
+  }
+
+  static async getInactiveAgents() {
+    return await prisma.agent.count({
+      where: {
+        status: false,
+      },
+    });
+  }
 }
