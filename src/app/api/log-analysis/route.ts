@@ -15,6 +15,11 @@ interface AnalysisResult {
 }
 
 interface AnalysisPayload {
+  machine_id: string;
+  version: string;
+  os: string;
+  hostname: string;
+  ip_address?: string;
   server_id: string;
   timestamp: string;
   results: AnalysisResult[];
@@ -51,9 +56,9 @@ async function authenticateRequest(request: Request): Promise<{
     return { valid: false, error: "Token is deactivated" };
   }
 
-  if (apiToken.agent.status === "deleted") {
-    return { valid: false, error: "Agent has been deleted" };
-  }
+  // if (apiToken.agent.status === "deleted") {
+  //   return { valid: false, error: "Agent has been deleted" };
+  // }
 
   // Update token last_used
   await prisma.apiToken.update({
@@ -92,14 +97,44 @@ export async function POST(request: Request) {
     }
 
     // Enforce: token must belong to the agent with this server_id
-    if (auth.agentId !== body.server_id) {
+    const agent = await prisma.agent.findUnique({
+      where: {
+        id: auth.agentId,
+      },
+    });
+    if (!agent) {
       return NextResponse.json(
         {
           status: "error",
-          message: "Token is not authorized for this server_id",
+          message: "Agent not found",
         },
-        { status: 403 },
+        { status: 404 },
       );
+    }
+    if (!agent.machine_id) {
+      // registration
+      await prisma.agent.update({
+        where: {
+          id: auth.agentId,
+        },
+        data: {
+          machine_id: body.machine_id,
+          version: body.version,
+          os: body.os,
+          hostname: body.hostname,
+          ip_address: body.ip_address,
+        },
+      });
+    } else {
+      if (agent.machine_id !== body.machine_id) {
+        return NextResponse.json(
+          {
+            status: "error",
+            message: "Token is not authorized for this server_id",
+          },
+          { status: 403 },
+        );
+      }
     }
 
     if (!body.timestamp || typeof body.timestamp !== "string") {
@@ -141,49 +176,101 @@ export async function POST(request: Request) {
     const agentId = auth.agentId as string;
 
     // 5. Upsert each result + update agent status
-    const upsertOps = body.results.map((result) => {
-      const riskReasonsJson = JSON.stringify(result.risk_reasons || []);
+    // const upsertOps = body.results.map((result) => {
+    //   // const riskReasonsJson = JSON.stringify(result.risk_reasons || []);
 
-      return prisma.anomalyLog.upsert({
-        where: {
-          agent_id_ip: {
+    //   const riskReasons = Array.isArray(result.risk_reasons)
+    //     ? result.risk_reasons
+    //     : [];
+
+    //   return prisma.anomalyLog.upsert({
+    //     where: {
+    //       agent_id_ip: {
+    //         agent_id: agentId,
+    //         ip: result.ip,
+    //       },
+    //     },
+    //     create: {
+    //       agent_id: agentId,
+    //       ip: result.ip,
+    //       request_count: result.request_count,
+    //       error_count: result.error_count ?? 0,
+    //       request_per_second: result.request_per_second ?? 0,
+    //       unique_endpoint_ratio: result.unique_endpoint_ratio ?? 0,
+    //       risk_score: result.risk_score ?? 0,
+    //       risk_category: result.risk_category ?? "LOW",
+    //       risk_reasons: riskReasons,
+    //     },
+    //     update: {
+    //       request_count: { increment: result.request_count },
+    //       error_count: { increment: result.error_count ?? 0 },
+    //       request_per_second: result.request_per_second ?? 0,
+    //       unique_endpoint_ratio: result.unique_endpoint_ratio ?? 0,
+    //       risk_score: result.risk_score ?? 0,
+    //       risk_category: result.risk_category ?? "LOW",
+    //       risk_reasons: riskReasons,
+    //     },
+    //   });
+    // });
+
+    // // Update agent last_seen and status
+    // const updateAgent = prisma.agent.update({
+    //   where: { id: agentId },
+    //   data: {
+    //     status: true,
+    //     last_seen: new Date(),
+    //   },
+    // });
+
+    // await prisma.$transaction([...upsertOps, updateAgent]);
+    await prisma.$transaction(async (tx) => {
+      for (const result of body.results) {
+        const riskReasons = Array.isArray(result.risk_reasons)
+          ? result.risk_reasons
+          : [];
+
+        await tx.anomalyLog.upsert({
+          where: {
+            agent_id_ip: {
+              agent_id: agentId,
+              ip: result.ip,
+            },
+          },
+          create: {
             agent_id: agentId,
             ip: result.ip,
+            request_count: result.request_count,
+            error_count: result.error_count ?? 0,
+            request_per_second: result.request_per_second ?? 0,
+            unique_endpoint_ratio: result.unique_endpoint_ratio ?? 0,
+            risk_score: result.risk_score ?? 0,
+            risk_category: result.risk_category ?? "LOW",
+            risk_reasons: riskReasons,
           },
-        },
-        create: {
-          agent_id: agentId,
-          ip: result.ip,
-          request_count: result.request_count,
-          error_count: result.error_count ?? 0,
-          request_per_second: result.request_per_second ?? 0,
-          unique_endpoint_ratio: result.unique_endpoint_ratio ?? 0,
-          risk_score: result.risk_score ?? 0,
-          risk_category: result.risk_category ?? "LOW",
-          risk_reasons: riskReasonsJson,
-        },
-        update: {
-          request_count: { increment: result.request_count },
-          error_count: { increment: result.error_count ?? 0 },
-          request_per_second: result.request_per_second ?? 0,
-          unique_endpoint_ratio: result.unique_endpoint_ratio ?? 0,
-          risk_score: result.risk_score ?? 0,
-          risk_category: result.risk_category ?? "LOW",
-          risk_reasons: riskReasonsJson,
+          update: {
+            request_count: { increment: result.request_count },
+            error_count: { increment: result.error_count ?? 0 },
+            request_per_second: result.request_per_second ?? 0,
+            unique_endpoint_ratio: result.unique_endpoint_ratio ?? 0,
+            risk_score: result.risk_score ?? 0,
+            risk_category: result.risk_category ?? "LOW",
+            risk_reasons: riskReasons,
+          },
+        });
+      }
+
+      await tx.agent.update({
+        where: { id: agentId },
+        data: {
+          status: true,
+          last_seen: new Date(),
+          version: body.version,
+          os: body.os,
+          hostname: body.hostname,
+          ip_address: body.ip_address,
         },
       });
     });
-
-    // Update agent last_seen and status
-    const updateAgent = prisma.agent.update({
-      where: { id: agentId },
-      data: {
-        status: "active",
-        last_seen: new Date(),
-      },
-    });
-
-    await prisma.$transaction([...upsertOps, updateAgent]);
 
     return NextResponse.json({ status: "ok" });
   } catch (error) {
