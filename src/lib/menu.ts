@@ -26,8 +26,8 @@ export const menu = {
       icon: HatGlasses,
     },
     {
-      title: "Anomalies",
-      url: "/results",
+      title: "Log Analysis",
+      url: "/log-analysis",
       icon: ChartBarDecreasing,
     },
     {

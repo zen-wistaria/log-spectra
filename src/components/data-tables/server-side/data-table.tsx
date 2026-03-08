@@ -24,11 +24,17 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { useDebounce } from "@/hooks/use-debounce";
-import type { TableParams } from "@/types/types";
 import EmptyState from "../empty-state";
 import { DataTableColumnToggle } from "./data-table-column-toggle";
 import { DataTablePagination } from "./data-table-pagination";
 import { DataTableSearch } from "./data-table-search";
+
+export interface TableParams {
+  page: number;
+  limit: number;
+  search: string;
+  sort: string;
+}
 
 interface DataTableProps<TData, TValue> {
   columns: ColumnDef<TData, TValue>[];
