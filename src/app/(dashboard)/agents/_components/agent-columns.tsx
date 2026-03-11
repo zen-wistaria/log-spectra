@@ -39,7 +39,11 @@ export const getColumns = (): ColumnDef<IColumns>[] => [
         disableColumnHide={true}
       />
     ),
-    cell: ({ row }) => <div className="text-xs">{row.original.name}</div>,
+    cell: ({ row }) => (
+      <div className="text-xs text-muted-foreground font-mono">
+        {row.original.name}
+      </div>
+    ),
     enableHiding: false,
   },
   {
@@ -75,7 +79,9 @@ export const getColumns = (): ColumnDef<IColumns>[] => [
       />
     ),
     cell: ({ row }) => (
-      <div className="text-xs">{row.original.hostname ?? "N/A"}</div>
+      <div className="text-xs font-mono text-muted-foreground">
+        {row.original.hostname ?? "N/A"}
+      </div>
     ),
     enableHiding: false,
   },
@@ -95,7 +101,9 @@ export const getColumns = (): ColumnDef<IColumns>[] => [
     enableColumnFilter: false,
     enableSorting: true,
     cell: ({ row }) => (
-      <div className="text-xs">{row.original.ip_address ?? "N/A"}</div>
+      <div className="text-xs font-mono text-muted-foreground">
+        {row.original.ip_address ?? "N/A"}
+      </div>
     ),
     enableHiding: false,
   },
@@ -109,7 +117,9 @@ export const getColumns = (): ColumnDef<IColumns>[] => [
       <DataTableColumnHeader column={column} title="OS" />
     ),
     cell: ({ row }) => (
-      <div className="text-xs">{row.original.os ?? "N/A"}</div>
+      <div className="text-xs font-mono text-muted-foreground">
+        {row.original.os ?? "N/A"}
+      </div>
     ),
   },
   {
