@@ -1,11 +1,18 @@
 "use client";
 
 import type { Agent } from "@prisma/client";
+import { AlertTriangle, ShieldAlert, ShieldCheck } from "lucide-react";
 import { parseAsInteger, useQueryState } from "nuqs";
 import { useState } from "react";
 import { AsyncSelect } from "@/components/async-select";
 import { DataTable } from "@/components/data-tables/server-side/data-table";
-import { Card, CardContent } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { useAsyncSelect } from "@/hooks/use-async-select";
 import { useDebounce } from "@/hooks/use-debounce";
 import { useAgents } from "@/query/agent.query";
@@ -55,9 +62,63 @@ export function LogsTable() {
     sort: "",
   });
   const agentSelect = useAsyncSelect<Agent>(null, agentQuery);
+  function getRiskRowClass(category: string) {
+    switch (category) {
+      case "HIGH":
+        return "bg-red-500/10 hover:bg-red-500/15 dark:bg-red-500/10 dark:hover:bg-red-500/20";
+      case "MEDIUM":
+        return "bg-yellow-500/10 hover:bg-yellow-500/15 dark:bg-yellow-500/10 dark:hover:bg-yellow-500/20";
+      default:
+        return "bg-green-500/5 hover:bg-green-500/10 dark:bg-green-500/5 dark:hover:bg-green-500/10";
+    }
+  }
 
   return (
     <div>
+      {/* Summary Cards */}
+      {data && (
+        <div className="grid gap-4 md:grid-cols-4 mb-4">
+          <Card>
+            <CardHeader className="pb-2">
+              <CardDescription>Total Reported IPs</CardDescription>
+              <CardTitle className="text-3xl">{data.total}</CardTitle>
+            </CardHeader>
+          </Card>
+          <Card className="border-red-500/30">
+            <CardHeader className="pb-2">
+              <CardDescription className="flex items-center gap-1">
+                <ShieldAlert className="size-3.5 text-red-500" />
+                High Risk
+              </CardDescription>
+              <CardTitle className="text-3xl text-red-500">
+                {data.highCount}
+              </CardTitle>
+            </CardHeader>
+          </Card>
+          <Card className="border-yellow-500/30">
+            <CardHeader className="pb-2">
+              <CardDescription className="flex items-center gap-1">
+                <AlertTriangle className="size-3.5 text-yellow-500" />
+                Medium Risk
+              </CardDescription>
+              <CardTitle className="text-3xl text-yellow-500">
+                {data.mediumCount}
+              </CardTitle>
+            </CardHeader>
+          </Card>
+          <Card className="border-green-500/30">
+            <CardHeader className="pb-2">
+              <CardDescription className="flex items-center gap-1">
+                <ShieldCheck className="size-3.5 text-green-500" />
+                Low Risk
+              </CardDescription>
+              <CardTitle className="text-3xl text-green-500">
+                {data.lowCount}
+              </CardTitle>
+            </CardHeader>
+          </Card>
+        </div>
+      )}
       <Card>
         <CardContent>
           <div className="max-w-sm">
@@ -98,6 +159,7 @@ export function LogsTable() {
             enableColumnToggle={true}
             emptyStateTitle="No anomalies logs found"
             emptyStateDescription="No anomalies logs found."
+            rowClassName={(row) => getRiskRowClass(row.risk_category)}
           />
         </CardContent>
       </Card>

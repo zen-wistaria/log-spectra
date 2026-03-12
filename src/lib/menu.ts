@@ -1,5 +1,6 @@
 import {
   ChartBarDecreasing,
+  FileSearch,
   HandHelping,
   HatGlasses,
   LayoutGrid,
@@ -26,9 +27,14 @@ export const menu = {
       icon: HatGlasses,
     },
     {
-      title: "Log Analysis",
-      url: "/log-analysis",
+      title: "Reports",
+      url: "/reports",
       icon: ChartBarDecreasing,
+    },
+    {
+      title: "Log Analyzer",
+      url: "/log-analyzer",
+      icon: FileSearch,
     },
     {
       title: "Users",

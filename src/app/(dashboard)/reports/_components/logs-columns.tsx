@@ -2,9 +2,11 @@
 
 import type { Agent, AnomalyLog } from "@prisma/client";
 import type { ColumnDef } from "@tanstack/react-table";
+import { AlertTriangle, ShieldAlert, ShieldCheck } from "lucide-react";
 import { DataTableColumnHeader } from "@/components/data-tables/data-table-column-header";
 import { DateCell } from "@/components/data-tables/date-cell";
 import { Badge } from "@/components/ui/badge";
+import { formatDateTime } from "@/lib/utils";
 
 export type IColumns = AnomalyLog & { agent: Agent };
 
@@ -34,7 +36,12 @@ export const getColumns = (): ColumnDef<IColumns>[] => [
         disableColumnHide={false}
       />
     ),
-    cell: ({ row }) => <DateCell date={row.original.updated_at} />,
+    cell: ({ row }) => (
+      <span className="text-xs">
+        {formatDateTime(String(row.original.updated_at))}
+      </span>
+    ),
+    // <DateCell date={row.original.updated_at} />,
     enableHiding: true,
   },
   {
@@ -139,7 +146,7 @@ export const getColumns = (): ColumnDef<IColumns>[] => [
         <Badge
           variant={
             low
-              ? "info-subtle"
+              ? "green-subtle"
               : medium
                 ? "yellow-subtle"
                 : high
@@ -147,24 +154,11 @@ export const getColumns = (): ColumnDef<IColumns>[] => [
                   : "gray-subtle"
           }
         >
-          <div className="font-mono text-xs">{row.original.ip}</div>
+          <div className="font-mono">{row.original.ip}</div>
         </Badge>
       );
     },
     enableHiding: false,
-  },
-  {
-    id: "error_count",
-    accessorKey: "error_count",
-    meta: {
-      label: "Error Count",
-    },
-    header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="Error Count" />
-    ),
-    cell: ({ row }) => (
-      <div className="text-xs">{row.original.error_count}</div>
-    ),
   },
   {
     id: "request_count",
@@ -180,13 +174,26 @@ export const getColumns = (): ColumnDef<IColumns>[] => [
     ),
   },
   {
+    id: "error_count",
+    accessorKey: "error_count",
+    meta: {
+      label: "Error Count",
+    },
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} title="Error Count" />
+    ),
+    cell: ({ row }) => (
+      <div className="text-xs">{row.original.error_count}</div>
+    ),
+  },
+  {
     id: "request_per_second",
     accessorKey: "request_per_second",
     meta: {
-      label: "Request per Second",
+      label: "Requests/sec",
     },
     header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="Request per Second" />
+      <DataTableColumnHeader column={column} title="Requests/sec" />
     ),
     cell: ({ row }) => (
       <div className="text-xs">{row.original.request_per_second} r/s</div>
@@ -196,12 +203,12 @@ export const getColumns = (): ColumnDef<IColumns>[] => [
     id: "unique_endpoint_ratio",
     accessorKey: "unique_endpoint_ratio",
     meta: {
-      label: "Unique Endpoint Ratio",
+      label: "Endpoint Ratio",
     },
     header: ({ column }) => (
       <DataTableColumnHeader
         column={column}
-        title="Unique Endpoint Ratio"
+        title="Endpoint Ratio"
         disableColumnHide={true}
       />
     ),
@@ -209,55 +216,6 @@ export const getColumns = (): ColumnDef<IColumns>[] => [
       <div className="text-xs">{row.original.unique_endpoint_ratio}</div>
     ),
     enableHiding: false,
-  },
-  {
-    id: "risk_category",
-    accessorKey: "risk_category",
-    meta: {
-      label: "Risk Category",
-    },
-    header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="Risk Category" />
-    ),
-    cell: ({ row }) => {
-      const low = row.original.risk_category.toLowerCase() === "low";
-      const medium = row.original.risk_category.toLowerCase() === "medium";
-      const high = row.original.risk_category.toLowerCase() === "high";
-      return (
-        <Badge
-          variant={
-            low
-              ? "info-subtle"
-              : medium
-                ? "yellow-subtle"
-                : high
-                  ? "red-subtle"
-                  : "gray-subtle"
-          }
-        >
-          <div className="text-xs">{row.original.risk_category}</div>
-        </Badge>
-      );
-    },
-  },
-  {
-    id: "risk_reasons",
-    accessorKey: "risk_reasons",
-    meta: {
-      label: "Risk Reasons",
-    },
-    header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="Risk Reasons" />
-    ),
-    cell: ({ row }) => {
-      if (!row.original.risk_reasons) return null;
-      const reason = row.original.risk_reasons.toString().split(",");
-      return reason.map((e) => (
-        <Badge key={e} variant="teal-subtle" className="ml-1">
-          {e}
-        </Badge>
-      ));
-    },
   },
   {
     id: "risk_score",
@@ -276,7 +234,7 @@ export const getColumns = (): ColumnDef<IColumns>[] => [
         <Badge
           variant={
             low
-              ? "info-subtle"
+              ? "green-subtle"
               : medium
                 ? "yellow-subtle"
                 : high
@@ -286,6 +244,69 @@ export const getColumns = (): ColumnDef<IColumns>[] => [
         >
           <div className="text-xs">{row.original.risk_score}%</div>
         </Badge>
+      );
+    },
+  },
+  {
+    id: "risk_category",
+    accessorKey: "risk_category",
+    meta: {
+      label: "Risk Category",
+    },
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} title="Risk Category" />
+    ),
+    cell: ({ row }) => {
+      const low = row.original.risk_category.toLowerCase() === "low";
+      const medium = row.original.risk_category.toLowerCase() === "medium";
+      const high = row.original.risk_category.toLowerCase() === "high";
+      return (
+        <Badge
+          variant={
+            low
+              ? "green-subtle"
+              : medium
+                ? "yellow-subtle"
+                : high
+                  ? "red-subtle"
+                  : "gray-subtle"
+          }
+        >
+          {low ? (
+            <ShieldCheck className="text-green-500" />
+          ) : medium ? (
+            <AlertTriangle className="text-yellow-500" />
+          ) : high ? (
+            <ShieldAlert className="text-red-500" />
+          ) : (
+            ""
+          )}
+          <div className="text-[10px]">{row.original.risk_category}</div>
+        </Badge>
+      );
+    },
+  },
+  {
+    id: "risk_reasons",
+    accessorKey: "risk_reasons",
+    meta: {
+      label: "Risk Reasons",
+    },
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} title="Risk Reasons" />
+    ),
+    cell: ({ row }) => {
+      if (!row.original.risk_reasons) return null;
+      const reason = row.original.risk_reasons.toString().split(",");
+      // return reason.map((e) => (
+      //   <Badge key={e} variant="teal-subtle" className="ml-1">
+      //     {e}
+      //   </Badge>
+      // ));
+      return (
+        <span className="text-muted-foreground text-xs">
+          {reason.join(", ")}
+        </span>
       );
     },
   },

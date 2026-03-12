@@ -18,7 +18,7 @@ export default function AnomaliesLogsPage() {
           <div className="flex items-start justify-between">
             <div>
               <h2 className="text-2xl font-bold tracking-tight">
-                Log Analysis
+                Report Log Analysis
               </h2>
               <p className="text-muted-foreground">
                 All log entries analyzed by agents with anomaly detection
