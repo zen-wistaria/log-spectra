@@ -6,7 +6,7 @@ features, runs Isolation Forest anomaly detection, and returns risk scores.
 
 import logging
 import os
-from fastapi import FastAPI, File, UploadFile, HTTPException
+from fastapi import FastAPI, File, Form, UploadFile, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 from pathlib import Path
@@ -52,7 +52,11 @@ ALLOWED_EXTENSIONS = {".log", ".txt"}
 
 
 @app.post("/analyze-log")
-async def analyze_log(file: UploadFile = File(...)):
+async def analyze_log(
+    file: UploadFile = File(...),
+    n_estimators: int = Form(200),
+    contamination: float = Form(0.02),
+):
     """
     Analyze an uploaded nginx access log file.
 
@@ -108,7 +112,11 @@ async def analyze_log(file: UploadFile = File(...)):
         )
 
     # 5. Anomaly detection
-    results = detect_anomalies(features)
+    results = detect_anomalies(
+        features,
+        n_estimators=n_estimators,
+        contamination=contamination,
+    )
 
     # 6. Risk scoring
     scored = calculate_risk(results)

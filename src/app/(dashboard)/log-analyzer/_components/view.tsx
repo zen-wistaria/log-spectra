@@ -1,10 +1,12 @@
 "use client";
 
+import { useForm } from "@tanstack/react-form";
 import {
   AlertTriangle,
   DatabaseSearch,
   FileText,
   Loader2,
+  Settings2,
   Shield,
   ShieldAlert,
   ShieldCheck,
@@ -22,6 +24,9 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Separator } from "@/components/ui/separator";
 import {
   Table,
   TableBody,
@@ -87,6 +92,17 @@ export default function LogAnalyzerView() {
   const [results, setResults] = useState<AnalysisResult[] | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Isolation Forest parameters
+  // const [nEstimators, setNEstimators] = useState(200);
+  // const [contamination, setContamination] = useState(0.02);
+
+  const form = useForm({
+    defaultValues: {
+      n_estimators: 200,
+      contamination: 0.02,
+    },
+  });
+
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0];
     if (!selectedFile) return;
@@ -115,13 +131,17 @@ export default function LogAnalyzerView() {
       return;
     }
 
+    const values = form.state.values;
+
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("n_estimators", String(values.n_estimators));
+    formData.append("contamination", String(values.contamination));
+
     setIsLoading(true);
     setResults(null);
 
     try {
-      const formData = new FormData();
-      formData.append("file", file);
-
       const response = await fetch("/api/analyze-log", {
         method: "POST",
         body: formData,
@@ -144,6 +164,10 @@ export default function LogAnalyzerView() {
       setIsLoading(false);
     }
   };
+
+  const hasErrors = Object.keys(form.state.errorMap).length > 0;
+
+  const canSubmit = !hasErrors && !form.state.isSubmitting && file !== null;
 
   const highCount =
     results?.filter((r) => r.risk_category === "HIGH").length ?? 0;
@@ -212,24 +236,111 @@ export default function LogAnalyzerView() {
               </div>
             )}
 
-            <Button
-              id="upload-button"
-              onClick={handleUpload}
-              disabled={!file || isLoading}
-              className="min-w-[140px]"
+            <form.Subscribe
+              selector={(state) => ({
+                isSubmitting: state.isSubmitting,
+                isValid: state.isValid,
+              })}
             >
-              {isLoading ? (
-                <>
-                  <Loader2 className="size-4 mr-2 animate-spin" />
-                  Analyzing...
-                </>
-              ) : (
-                <>
-                  <DatabaseSearch className="size-4 mr-2" />
-                  Analyze
-                </>
+              {({ isSubmitting, isValid }) => (
+                <Button
+                  id="upload-button"
+                  onClick={handleUpload}
+                  disabled={!isValid || isSubmitting || !file}
+                  className="min-w-[140px]"
+                >
+                  {isLoading ? (
+                    <>
+                      <Loader2 className="size-4 mr-2 animate-spin" />
+                      Analyzing...
+                    </>
+                  ) : (
+                    <>
+                      <DatabaseSearch className="size-4 mr-2" />
+                      Analyze
+                    </>
+                  )}
+                </Button>
               )}
-            </Button>
+            </form.Subscribe>
+          </div>
+
+          {/* Isolation Forest Parameters */}
+          <Separator className="my-4" />
+          <div className="flex items-center gap-2 mb-4">
+            <Settings2 className="size-4 text-muted-foreground" />
+            <span className="text-sm font-medium text-muted-foreground">
+              Isolation Forest Parameters
+            </span>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <form.Field
+              name="n_estimators"
+              validators={{
+                onChange: ({ value }) => {
+                  if (value < 100) return "Minimum value is 100";
+                  if (value > 300) return "Maximum value is 300";
+                  return undefined;
+                },
+              }}
+            >
+              {(field) => (
+                <div className="space-y-2">
+                  <Label>N Estimators</Label>
+
+                  <Input
+                    type="number"
+                    value={field.state.value}
+                    onChange={(e) => field.handleChange(Number(e.target.value))}
+                    disabled={isLoading}
+                  />
+
+                  {field.state.meta.errors.length > 0 && (
+                    <p className="text-xs text-red-500">
+                      {field.state.meta.errors[0]}
+                    </p>
+                  )}
+
+                  <p className="text-xs text-muted-foreground">
+                    Number of trees in the forest (100–300)
+                  </p>
+                </div>
+              )}
+            </form.Field>
+            <form.Field
+              name="contamination"
+              validators={{
+                onChange: ({ value }) => {
+                  if (value < 0.01) return "Minimum value is 0.01";
+                  if (value > 0.5) return "Maximum value is 0.5";
+                  return undefined;
+                },
+              }}
+            >
+              {(field) => (
+                <div className="space-y-2">
+                  <Label>Contamination</Label>
+
+                  <Input
+                    type="number"
+                    step="0.001"
+                    value={field.state.value}
+                    onChange={(e) => field.handleChange(Number(e.target.value))}
+                    disabled={isLoading}
+                  />
+
+                  {field.state.meta.errors.length > 0 && (
+                    <p className="text-xs text-red-500">
+                      {field.state.meta.errors[0]}
+                    </p>
+                  )}
+
+                  <p className="text-xs text-muted-foreground">
+                    Expected proportion of anomalies (0.01–0.5)
+                  </p>
+                </div>
+              )}
+            </form.Field>
           </div>
         </CardContent>
       </Card>

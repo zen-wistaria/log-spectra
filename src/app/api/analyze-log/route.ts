@@ -10,6 +10,8 @@ export async function POST(request: NextRequest) {
     // 1. Parse form data
     const formData = await request.formData();
     const file = formData.get("file");
+    const nEstimators = formData.get("n_estimators");
+    const contamination = formData.get("contamination");
 
     if (!file || !(file instanceof File)) {
       return NextResponse.json({ error: "No file provided" }, { status: 400 });
@@ -43,6 +45,10 @@ export async function POST(request: NextRequest) {
     // 4. Forward file to FastAPI
     const fastapiFormData = new FormData();
     fastapiFormData.append("file", file);
+    if (nEstimators)
+      fastapiFormData.append("n_estimators", nEstimators as string);
+    if (contamination)
+      fastapiFormData.append("contamination", contamination as string);
 
     const response = await fetch(`${FASTAPI_URL}/analyze-log`, {
       method: "POST",
