@@ -81,7 +81,7 @@ export class AgentService {
     return await prisma.agent.count();
   }
 
-  static async getActiveAgents() {
+  static async getCountActiveAgents() {
     return await prisma.agent.count({
       where: {
         status: "online",
@@ -89,10 +89,29 @@ export class AgentService {
     });
   }
 
-  static async getInactiveAgents() {
+  static async getCountInactiveAgents() {
     return await prisma.agent.count({
       where: {
         status: "offline",
+      },
+    });
+  }
+
+  static async getActiveAgents() {
+    return await prisma.agent.findMany({
+      where: {
+        status: "online",
+      },
+    });
+  }
+
+  static async updateAgentStatus(id: string, status: string) {
+    return await prisma.agent.update({
+      where: {
+        id,
+      },
+      data: {
+        status,
       },
     });
   }
