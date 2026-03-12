@@ -175,59 +175,26 @@ export async function POST(request: Request) {
 
     const agentId = auth.agentId as string;
 
-    // 5. Upsert each result + update agent status
-    // const upsertOps = body.results.map((result) => {
-    //   // const riskReasonsJson = JSON.stringify(result.risk_reasons || []);
+    // Collect current report IPs for cleanup
+    const currentIps = body.results.map((r) => r.ip);
 
-    //   const riskReasons = Array.isArray(result.risk_reasons)
-    //     ? result.risk_reasons
-    //     : [];
-
-    //   return prisma.anomalyLog.upsert({
-    //     where: {
-    //       agent_id_ip: {
-    //         agent_id: agentId,
-    //         ip: result.ip,
-    //       },
-    //     },
-    //     create: {
-    //       agent_id: agentId,
-    //       ip: result.ip,
-    //       request_count: result.request_count,
-    //       error_count: result.error_count ?? 0,
-    //       request_per_second: result.request_per_second ?? 0,
-    //       unique_endpoint_ratio: result.unique_endpoint_ratio ?? 0,
-    //       risk_score: result.risk_score ?? 0,
-    //       risk_category: result.risk_category ?? "LOW",
-    //       risk_reasons: riskReasons,
-    //     },
-    //     update: {
-    //       request_count: { increment: result.request_count },
-    //       error_count: { increment: result.error_count ?? 0 },
-    //       request_per_second: result.request_per_second ?? 0,
-    //       unique_endpoint_ratio: result.unique_endpoint_ratio ?? 0,
-    //       risk_score: result.risk_score ?? 0,
-    //       risk_category: result.risk_category ?? "LOW",
-    //       risk_reasons: riskReasons,
-    //     },
-    //   });
-    // });
-
-    // // Update agent last_seen and status
-    // const updateAgent = prisma.agent.update({
-    //   where: { id: agentId },
-    //   data: {
-    //     status: true,
-    //     last_seen: new Date(),
-    //   },
-    // });
-
-    // await prisma.$transaction([...upsertOps, updateAgent]);
     await prisma.$transaction(async (tx) => {
+      // Upsert each result — replace (not increment) since agent
+      // now sends analysis of the full accumulated buffer
       for (const result of body.results) {
         const riskReasons = Array.isArray(result.risk_reasons)
           ? result.risk_reasons
           : [];
+
+        const data = {
+          request_count: result.request_count,
+          error_count: result.error_count ?? 0,
+          request_per_second: result.request_per_second ?? 0,
+          unique_endpoint_ratio: result.unique_endpoint_ratio ?? 0,
+          risk_score: result.risk_score ?? 0,
+          risk_category: result.risk_category ?? "LOW",
+          risk_reasons: riskReasons,
+        };
 
         await tx.anomalyLog.upsert({
           where: {
@@ -239,30 +206,25 @@ export async function POST(request: Request) {
           create: {
             agent_id: agentId,
             ip: result.ip,
-            request_count: result.request_count,
-            error_count: result.error_count ?? 0,
-            request_per_second: result.request_per_second ?? 0,
-            unique_endpoint_ratio: result.unique_endpoint_ratio ?? 0,
-            risk_score: result.risk_score ?? 0,
-            risk_category: result.risk_category ?? "LOW",
-            risk_reasons: riskReasons,
+            ...data,
           },
-          update: {
-            request_count: { increment: result.request_count },
-            error_count: { increment: result.error_count ?? 0 },
-            request_per_second: result.request_per_second ?? 0,
-            unique_endpoint_ratio: result.unique_endpoint_ratio ?? 0,
-            risk_score: result.risk_score ?? 0,
-            risk_category: result.risk_category ?? "LOW",
-            risk_reasons: riskReasons,
-          },
+          update: data,
         });
       }
 
+      // Remove stale IPs no longer present in the latest report
+      await tx.anomalyLog.deleteMany({
+        where: {
+          agent_id: agentId,
+          ip: { notIn: currentIps },
+        },
+      });
+
+      // Update agent metadata
       await tx.agent.update({
         where: { id: agentId },
         data: {
-          status: true,
+          status: "online",
           last_seen: new Date(),
           version: body.version,
           os: body.os,

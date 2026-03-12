@@ -1,14 +1,15 @@
 """
 Main agent runner for log anomaly detection.
-Reads nginx logs, runs analysis on a configurable interval,
+Reads nginx logs, runs analysis on accumulated data,
 and sends results to the central server via HTTP POST.
+Heartbeat runs on a separate thread with its own interval.
 """
 
 import time
-import json
 import logging
+import threading
 import requests
-from datetime import datetime, timedelta
+from datetime import datetime
 
 from config import load_config
 from log_reader import LogReader
@@ -67,7 +68,7 @@ def build_payload(server_id: str, result_df, max_ips: int, sys_info: dict) -> di
     }
 
 
-def send_to_server(
+def _http_post(
     url: str,
     payload: dict,
     auth_token: str = "",
@@ -75,8 +76,7 @@ def send_to_server(
     retry_backoff: int = 2,
 ) -> bool:
     """
-    Send analysis results to the main server via HTTP POST.
-    Implements retry with exponential backoff.
+    Send a JSON payload via HTTP POST with retry and exponential backoff.
     Includes Bearer token in Authorization header.
     """
     headers = {"Content-Type": "application/json"}
@@ -86,19 +86,18 @@ def send_to_server(
     for attempt in range(1, retry_max + 1):
         try:
             logger.info(
-                "Sending results to %s (attempt %d/%d)...",
+                "POST %s (attempt %d/%d)...",
                 url, attempt, retry_max,
             )
             response = requests.post(
                 url,
-                # data=json.dumps(payload),
                 json=payload,
                 headers=headers,
                 timeout=30,
             )
 
             if response.status_code == 200:
-                logger.info("Results sent successfully: %s", response.json())
+                logger.info("POST %s successful: %s", url, response.json())
                 return True
             else:
                 logger.warning(
@@ -112,24 +111,52 @@ def send_to_server(
         except requests.exceptions.Timeout:
             logger.error("Request timed out to %s", url)
         except Exception as e:
-            logger.error("Unexpected error sending results: %s", e)
+            logger.error("Unexpected error sending POST to %s: %s", url, e)
 
         if attempt < retry_max:
             wait_time = retry_backoff ** attempt
             logger.info("Retrying in %d seconds...", wait_time)
             time.sleep(wait_time)
 
-    logger.error("Failed to send results after %d attempts", retry_max)
+    logger.error("Failed POST to %s after %d attempts", url, retry_max)
     return False
 
 
-def filter_window(buffer: list[dict], window_seconds: int) -> list[dict]:
-    """Filter log entries to only include the last N seconds."""
-    if not buffer:
-        return []
+def send_to_server(
+    url: str,
+    payload: dict,
+    auth_token: str = "",
+    retry_max: int = 3,
+    retry_backoff: int = 2,
+) -> bool:
+    """Send analysis results to the main server."""
+    return _http_post(url, payload, auth_token, retry_max, retry_backoff)
 
-    cutoff = datetime.now() - timedelta(seconds=window_seconds)
-    return [entry for entry in buffer if entry["timestamp"] >= cutoff]
+
+def send_heartbeat(
+    url: str,
+    server_id: str,
+    sys_info: dict,
+    buffer_size: int,
+    auth_token: str = "",
+    retry_max: int = 3,
+    retry_backoff: int = 2,
+) -> bool:
+    """
+    Send a lightweight heartbeat to signal the agent is alive.
+    Runs on a separate thread, independent of the analysis cycle.
+    """
+    payload = {
+        "server_id": server_id,
+        "machine_id": sys_info["machine_id"],
+        "version": sys_info["version"],
+        "os": sys_info["os"],
+        "hostname": sys_info["hostname"],
+        "ip_address": sys_info["ip_address"],
+        "timestamp": datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "buffer_size": buffer_size,
+    }
+    return _http_post(url, payload, auth_token, retry_max, retry_backoff)
 
 
 def run_analysis(
@@ -165,6 +192,46 @@ def run_analysis(
     return result
 
 
+def _heartbeat_loop(
+    stop_event: threading.Event,
+    heartbeat_url: str,
+    heartbeat_interval: int,
+    config: dict,
+    sys_info: dict,
+    reader: "LogReader",
+) -> None:
+    """
+    Background loop that sends heartbeat at a fixed interval.
+    Runs as a daemon thread — exits automatically when the main thread ends.
+    """
+    logger.info(
+        "Heartbeat thread started (interval: %d seconds)", heartbeat_interval
+    )
+
+    # Send first heartbeat immediately on startup
+    while not stop_event.is_set():
+        try:
+            buffer_size = reader.get_buffer_size()
+            logger.info("Sending heartbeat (buffer_size=%d)...", buffer_size)
+            send_heartbeat(
+                heartbeat_url,
+                config["server_id"],
+                sys_info,
+                buffer_size,
+                auth_token=config["auth_token"],
+                retry_max=config["retry_max"],
+                retry_backoff=config["retry_backoff"],
+            )
+        except Exception as e:
+            logger.error("Error in heartbeat: %s", e)
+
+        # Wait for the interval, but check stop_event periodically
+        # so the thread can exit promptly on shutdown
+        stop_event.wait(timeout=heartbeat_interval)
+
+    logger.info("Heartbeat thread stopped")
+
+
 def main():
     """Main agent loop."""
     config = load_config()
@@ -188,52 +255,54 @@ def main():
         config["log_path"],
         max_size_mb=config["accumulated_log_max_size_mb"],
     )
+
     api_url = f"{config['server_url'].rstrip('/')}{config['api_endpoint']}"
-    is_first_run = True
+    heartbeat_url = f"{config['server_url'].rstrip('/')}{config['heartbeat_endpoint']}"
 
     logger.info("Agent ready. API URL: %s", api_url)
+    logger.info("Heartbeat URL: %s", heartbeat_url)
     logger.info("Analysis interval: %d seconds", config["analysis_interval"])
+    logger.info("Heartbeat interval: %d seconds", config["heartbeat_interval"])
 
+    # Start heartbeat on a separate daemon thread
+    stop_event = threading.Event()
+    heartbeat_thread = threading.Thread(
+        target=_heartbeat_loop,
+        args=(
+            stop_event,
+            heartbeat_url,
+            config["heartbeat_interval"],
+            config,
+            sys_info,
+            reader,
+        ),
+        daemon=True,
+        name="heartbeat",
+    )
+    heartbeat_thread.start()
+
+    # Main analysis loop
     while True:
         try:
-            # Read new log lines (incremental)
-            new_entries = reader.read_new_lines()
+            # 1. Read new log lines (incremental, appends to buffer)
+            reader.read_new_lines()
             buffer = reader.get_buffer()
+            buffer_size = reader.get_buffer_size()
 
-            analysis_entries = None
-
-            if is_first_run:
-                # First run: enforce minimum log lines
-                if reader.get_buffer_size() < config["min_log_lines"]:
-                    logger.info(
-                        "Waiting for minimum log lines: %d/%d collected",
-                        reader.get_buffer_size(),
-                        config["min_log_lines"],
-                    )
-                else:
-                    # Enough data collected — run first analysis on full buffer
-                    logger.info(
-                        "First run — analyzing full buffer (%d entries)",
-                        len(buffer),
-                    )
-                    analysis_entries = buffer
-                    is_first_run = False
-            else:
-                # Subsequent runs: analyze only the last 5-minute window
-                analysis_entries = filter_window(
-                    buffer, config["analysis_interval"]
-                )
+            # 2. Run analysis on full accumulated buffer if enough data
+            if buffer_size < config["min_log_lines"]:
                 logger.info(
-                    "Window analysis: %d entries in last %d seconds (buffer total: %d)",
-                    len(analysis_entries),
-                    config["analysis_interval"],
-                    len(buffer),
+                    "Waiting for minimum log lines: %d/%d collected, skipping analysis",
+                    buffer_size,
+                    config["min_log_lines"],
                 )
-
-            # Only run analysis if we have entries to analyze
-            if analysis_entries is not None:
+            else:
+                logger.info(
+                    "Analyzing full accumulated buffer (%d entries)...",
+                    buffer_size,
+                )
                 result = run_analysis(
-                    analysis_entries,
+                    buffer,
                     config["n_estimators"],
                     config["contamination"],
                 )
@@ -279,6 +348,9 @@ def main():
             logger.info("Agent stopped by user")
             break
 
+    # Signal heartbeat thread to stop and wait for it
+    stop_event.set()
+    heartbeat_thread.join(timeout=5)
     logger.info("Agent shutdown complete")
 
 

@@ -12,6 +12,7 @@ logger = logging.getLogger(__name__)
 # ─── Constants ──────────────────────────────────────────────
 ACCUMULATED_LOG_MAX_CAP_MB = 500  # Hard cap for accumulated log size
 MAX_IPS_PER_REPORT_CAP = 50       # Hard cap for IPs sent per report
+HEARTBEAT_INTERVAL_MAX = 600      # Hard cap for heartbeat interval (10 minutes)
 
 # ─── Defaults ───────────────────────────────────────────────
 DEFAULTS = {
@@ -29,6 +30,8 @@ DEFAULTS = {
     "min_log_lines": 100,                # Minimum lines before first analysis
     "accumulated_log_max_size_mb": 200,   # Max accumulated log file size (MB)
     "max_ips_per_report": 10,             # Number of top-risk IPs to send per report
+    "heartbeat_endpoint": "/api/agents/heartbeat",  # Heartbeat API endpoint path
+    "heartbeat_interval": 300,  # Heartbeat interval in seconds (5 minutes)
 }
 
 
@@ -66,6 +69,8 @@ def parse_cli_args() -> argparse.Namespace:
     parser.add_argument("--min-log-lines", type=int, help="Minimum log lines before first analysis")
     parser.add_argument("--accumulated-log-max-size-mb", type=int, help="Max accumulated log file size in MB (max: 500)")
     parser.add_argument("--max-ips-per-report", type=int, help="Number of top-risk IPs to send per report (max: 50)")
+    parser.add_argument("--heartbeat-endpoint", type=str, help="Heartbeat API endpoint path")
+    parser.add_argument("--heartbeat-interval", type=int, help="Heartbeat interval in seconds (max: 600)")
     parser.add_argument("--config", type=str, default="config.yaml", help="Path to YAML config file")
     parser.add_argument("--log-level", type=str, help="Logging level (DEBUG, INFO, WARNING, ERROR)")
     return parser.parse_args()
@@ -103,6 +108,8 @@ def load_config() -> dict:
         "AGENT_ACCUMULATED_LOG_MAX_SIZE_MB": "accumulated_log_max_size_mb",
         "AGENT_MAX_IPS_PER_REPORT": "max_ips_per_report",
         "AGENT_LOG_LEVEL": "log_level",
+        "AGENT_HEARTBEAT_ENDPOINT": "heartbeat_endpoint",
+        "AGENT_HEARTBEAT_INTERVAL": "heartbeat_interval",
     }
     for env_key, config_key in env_map.items():
         env_val = os.environ.get(env_key)
@@ -123,6 +130,8 @@ def load_config() -> dict:
         "accumulated_log_max_size_mb": cli.accumulated_log_max_size_mb,
         "max_ips_per_report": cli.max_ips_per_report,
         "log_level": cli.log_level,
+        "heartbeat_endpoint": cli.heartbeat_endpoint,
+        "heartbeat_interval": cli.heartbeat_interval,
     }
     for config_key, cli_val in cli_map.items():
         if cli_val is not None:
@@ -160,5 +169,21 @@ def load_config() -> dict:
             config["max_ips_per_report"],
         )
         config["max_ips_per_report"] = 1
+
+    if config["heartbeat_interval"] > HEARTBEAT_INTERVAL_MAX:
+        logger.warning(
+            "heartbeat_interval=%d exceeds maximum %d seconds, clamping to %d",
+            config["heartbeat_interval"],
+            HEARTBEAT_INTERVAL_MAX,
+            HEARTBEAT_INTERVAL_MAX,
+        )
+        config["heartbeat_interval"] = HEARTBEAT_INTERVAL_MAX
+
+    if config["heartbeat_interval"] < 30:
+        logger.warning(
+            "heartbeat_interval=%d is too low, setting to 30 seconds",
+            config["heartbeat_interval"],
+        )
+        config["heartbeat_interval"] = 30
 
     return config
