@@ -160,16 +160,20 @@ export const getColumns = (): ColumnDef<IColumns>[] => [
       />
     ),
     cell: ({ row }) => (
-      <Badge variant={row.original.status ? "green-subtle" : "red-subtle"}>
-        {row.original.status ? (
+      <Badge
+        variant={
+          row.original.status === "online" ? "green-subtle" : "red-subtle"
+        }
+      >
+        {row.original.status === "online" ? (
           <>
             <CheckCircle size={16} className="mr-1" />
-            Active
+            Online
           </>
         ) : (
           <>
             <XCircle size={16} className="mr-1" />
-            Inactive
+            Offline
           </>
         )}
       </Badge>
