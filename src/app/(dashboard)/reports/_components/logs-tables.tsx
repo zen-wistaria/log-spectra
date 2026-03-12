@@ -61,7 +61,7 @@ export function LogsTable() {
     search: debounceAgent,
     sort: "",
   });
-  const agentSelect = useAsyncSelect<Agent>(null, agentQuery);
+  const agentSelect = useAsyncSelect<Agent>(agentId, agentQuery);
   function getRiskRowClass(category: string) {
     switch (category) {
       case "HIGH":
@@ -131,7 +131,7 @@ export function LogsTable() {
               isLoading={agentSelect.isLoading}
               items={agentSelect.items}
               placeholderEmptySelected="Select Agent"
-              placeholderSearch="Search for more..."
+              placeholderSearch="Try typing your keyboard for search..."
               getLabel={(item) => item.name}
               onSelect={(item) => {
                 agentSelect.handleSelect(item);
@@ -157,8 +157,8 @@ export function LogsTable() {
             defaultSorting={[{ id: "updated_at", desc: true }]}
             enableSearch={true}
             enableColumnToggle={true}
-            emptyStateTitle="No anomalies logs found"
-            emptyStateDescription="No anomalies logs found."
+            emptyStateTitle="No reports logs found"
+            emptyStateDescription="try to create agent first then use in your web server"
             rowClassName={(row) => getRiskRowClass(row.risk_category)}
           />
         </CardContent>

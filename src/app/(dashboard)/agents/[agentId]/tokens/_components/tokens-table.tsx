@@ -67,10 +67,10 @@ export function TokensTable({ agentId }: { agentId: string }) {
             defaultSorting={[{ id: "created_at", desc: true }]}
             enableSearch={true}
             enableColumnToggle={true}
-            emptyStateTitle="No agent found"
-            emptyStateDescription="Create your first agent."
+            emptyStateTitle="No tokens found"
+            emptyStateDescription="Create your first tokens."
             onCreateNew={handleCreateNew}
-            createButtonText="Create Agent"
+            createButtonText="Create Tokens"
           />
         </CardContent>
       </Card>

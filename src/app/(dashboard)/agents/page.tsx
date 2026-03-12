@@ -3,13 +3,17 @@ import { Suspense } from "react";
 import { DataTableFallback } from "@/components/data-tables/data-table-fallback";
 import { ErrorBoundary } from "@/components/error-boundary";
 import TableLoading from "@/components/table-loading";
+import { getRuntimeConfig } from "@/lib/runtime-config";
 import AgentCreateButton from "./_components/agent-button-create";
 import { AgentsTable } from "./_components/agent-tables";
 
-export const metadata: Metadata = {
-  title: "Agents — LogGuard",
-  description: "Monitor connected agents and their status",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const config = getRuntimeConfig();
+  return {
+    title: `Agents | ${config.appName}`,
+    description: "Monitor connected agents and their status",
+  };
+}
 
 export default function AgentsPage() {
   return (

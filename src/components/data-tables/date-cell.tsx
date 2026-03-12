@@ -19,7 +19,7 @@ export const DateCell = ({ date, fallbackText = "N/A" }: DateCellProps) => {
   const [copied, setCopied] = useState<string | null>(null);
 
   if (!date) {
-    return <div className="text-xs">{fallbackText}</div>;
+    return <div className="text-xs text-muted-foreground">{fallbackText}</div>;
   }
 
   const { timeAgo, utcDateTime, localDateTime, localTimeZone } =

@@ -3,12 +3,16 @@ import { Suspense } from "react";
 import { DataTableFallback } from "@/components/data-tables/data-table-fallback";
 import { ErrorBoundary } from "@/components/error-boundary";
 import TableLoading from "@/components/table-loading";
+import { getRuntimeConfig } from "@/lib/runtime-config";
 import { LogsTable } from "./_components/logs-tables";
 
-export const metadata: Metadata = {
-  title: "Log Analysis — LogGuard",
-  description: "View all analyzed log entries from agents",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const config = getRuntimeConfig();
+  return {
+    title: `Reports | ${config.appName}`,
+    description: "View all analyzed log entries from agents",
+  };
+}
 
 export default function AnomaliesLogsPage() {
   return (

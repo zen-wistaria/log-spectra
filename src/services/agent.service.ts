@@ -81,6 +81,22 @@ export class AgentService {
     return await prisma.agent.count();
   }
 
+  static async getAgentById(id: string) {
+    return await prisma.agent.findUnique({
+      where: {
+        id,
+      },
+      include: {
+        _count: {
+          select: {
+            anomaly_logs: true,
+            tokens: true,
+          },
+        },
+      },
+    });
+  }
+
   static async getCountActiveAgents() {
     return await prisma.agent.count({
       where: {

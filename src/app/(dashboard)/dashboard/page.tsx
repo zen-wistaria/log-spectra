@@ -1,14 +1,18 @@
 import type { Metadata } from "next";
 import { LatestAgentReports } from "@/components/dashboard/latest-agent-reports";
 import { TopSuspiciousIp } from "@/components/dashboard/top-suspicious-ip";
+import { getRuntimeConfig } from "@/lib/runtime-config";
 import { AnomalyService } from "@/services/anomaly.service";
 
 export const dynamic = "force-dynamic";
 
-export const metadata: Metadata = {
-  title: "Dashboard — LogGuard",
-  description: "Server log anomaly detection dashboard",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const config = getRuntimeConfig();
+  return {
+    title: `Dashboard | ${config.appName}`,
+    description: "Server log anomaly detection dashboard",
+  };
+}
 
 export default async function DashboardPage() {
   const stats = await AnomalyService.getDashboardStats();

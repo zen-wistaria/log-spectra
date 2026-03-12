@@ -2,6 +2,7 @@ import {
   Earth,
   Eye,
   FolderSymlink,
+  KeyRound,
   Loader2,
   MoreHorizontal,
   Pencil,
@@ -63,10 +64,18 @@ export default function CellActions({ row }: { row: IColumns }) {
           </DropdownMenuItem>
           <DropdownMenuItem
             onSelect={() => {
-              router.push(`/agents/${row.id}/tokens`);
+              router.push(`/agents/${row.id}`);
             }}
           >
             <Eye className="size-4" />
+            Details
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            onSelect={() => {
+              router.push(`/agents/${row.id}/tokens`);
+            }}
+          >
+            <KeyRound className="size-4" />
             Tokens
           </DropdownMenuItem>
           <DropdownMenuItem
@@ -104,13 +113,6 @@ export default function CellActions({ row }: { row: IColumns }) {
           onSuccess={() => setIsEditModalOpen(false)}
         />
       </Modal>
-      {/* <Modal
-        title="Detail Proxy Host"
-        isOpen={isDetailModalOpen}
-        onClose={() => setIsDetailModalOpen(false)}
-      >
-        <ProxyHostDetail data={row} permissions={permissions} policy={policy} />
-      </Modal> */}
     </>
   );
 }
