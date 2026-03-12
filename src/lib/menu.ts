@@ -1,11 +1,11 @@
 import {
   ChartBarDecreasing,
   FileSearch,
-  HandHelping,
+  // HandHelping,
   HatGlasses,
   LayoutGrid,
-  Search,
-  Settings,
+  // Search,
+  // Settings,
   Users,
 } from "lucide-react";
 
@@ -43,20 +43,20 @@ export const menu = {
     },
   ],
   navSecondary: [
-    {
-      title: "Settings",
-      url: "/settings",
-      icon: Settings,
-    },
-    {
-      title: "Get Help",
-      url: "#",
-      icon: HandHelping,
-    },
-    {
-      title: "Search",
-      url: "#",
-      icon: Search,
-    },
+    //   {
+    //     title: "Settings",
+    //     url: "/settings",
+    //     icon: Settings,
+    //   },
+    //   {
+    //     title: "Get Help",
+    //     url: "#",
+    //     icon: HandHelping,
+    //   },
+    //   {
+    //     title: "Search",
+    //     url: "#",
+    //     icon: Search,
+    //   },
   ],
 };

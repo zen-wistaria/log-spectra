@@ -1,6 +1,13 @@
 "use client";
 
-import { Bell, CreditCard, DotSquare, LogOut, UserCircle } from "lucide-react";
+import {
+  Bell,
+  ChevronsUpDown,
+  CreditCard,
+  DotSquare,
+  LogOut,
+  UserCircle,
+} from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   DropdownMenu,
@@ -48,7 +55,7 @@ export function NavUser({
                   {user.email}
                 </span>
               </div>
-              <DotSquare className="ml-auto size-4" />
+              <ChevronsUpDown className="ml-auto size-4" />
             </SidebarMenuButton>
           </DropdownMenuTrigger>
           <DropdownMenuContent
@@ -72,7 +79,7 @@ export function NavUser({
               </div>
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
-            <DropdownMenuGroup>
+            {/* <DropdownMenuGroup>
               <DropdownMenuItem>
                 <UserCircle />
                 Account
@@ -85,7 +92,7 @@ export function NavUser({
                 <Bell />
                 Notifications
               </DropdownMenuItem>
-            </DropdownMenuGroup>
+            </DropdownMenuGroup> */}
             <DropdownMenuSeparator />
             <DropdownMenuItem>
               <LogOut />
