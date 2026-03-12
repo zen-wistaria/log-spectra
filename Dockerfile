@@ -34,7 +34,7 @@ RUN rm -rf .env* .next/standalone/.env*
 ####### Stage 4: This step is for get minimal size for prisma (decrease image size by 1GB, tested by me)
 FROM base AS prisma
 
-RUN bun add prisma@7.4.1 dotenv-expand@12.0.3 @prisma/adapter-better-sqlite3 --omit=dev
+RUN bun add prisma@7.4.2 dotenv-expand@12.0.3 @prisma/adapter-pg@7.4.2 --omit=dev
 
 RUN bun pm cache rm
 
@@ -63,7 +63,12 @@ LABEL org.opencontainers.image.title="${TITLE}" \
       org.opencontainers.image.revision="${VCS_REF}" \
       org.opencontainers.image.authors="${AUTHORS}"
 
-RUN apt-get update && apt-get install -y tzdata \
+RUN apt-get update && apt-get install -y \
+    tzdata \
+    python3 \
+    python3-pip \
+    python3-venv \
+    build-essential \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 ENV TZ=Asia/Jakarta
@@ -81,15 +86,25 @@ COPY --from=builder /app/scripts ./scripts
 COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/.next/static ./.next/static
 
+# FastAPI
+COPY --from=builder /app/fastapi ./fastapi
+
+# Setup python venv
+RUN python3 -m venv /app/fastapi/.venv && \
+    /app/fastapi/.venv/bin/pip install --upgrade pip && \
+    if [ -f /app/fastapi/requirements.txt ]; then \
+        /app/fastapi/.venv/bin/pip install -r /app/fastapi/requirements.txt; \
+    fi
+
 # Copy node_modules prisma from Stage 4
 COPY --from=prisma /app/node_modules ./node_modules
 COPY --from=builder /app/prisma.config.ts /app/
 
 # Optional: non-root user
-RUN addgroup --system --gid 1001 nodejs && \
-    adduser --system --uid 1001 nextjs
-RUN chown -R nextjs:nodejs ./
+RUN groupadd --gid 1001 nodejs && \
+    useradd --uid 1001 --gid nodejs --create-home nextjs
+RUN chown -R nextjs:nodejs ./   
 USER nextjs
 
 EXPOSE 3000
-CMD ["bun", "server.js"]
+CMD ["bash", "scripts/run.sh"]

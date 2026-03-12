@@ -1,5 +1,15 @@
 name: logspectra
 services:
+  app:
+    image: registry.anri.my.id/me/logspectra:latest
+    container_name: logspectra
+    ports:
+      - "3000:3000"
+    volumes:
+      - .env:/app/.env
+    depends_on:
+      - database
+
   database:
     image: postgres:15.2-alpine
     environment:
