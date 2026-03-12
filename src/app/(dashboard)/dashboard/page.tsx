@@ -3,6 +3,8 @@ import { LatestAgentReports } from "@/components/dashboard/latest-agent-reports"
 import { TopSuspiciousIp } from "@/components/dashboard/top-suspicious-ip";
 import { AnomalyService } from "@/services/anomaly.service";
 
+export const dynamic = "force-dynamic";
+
 export const metadata: Metadata = {
   title: "Dashboard — LogGuard",
   description: "Server log anomaly detection dashboard",

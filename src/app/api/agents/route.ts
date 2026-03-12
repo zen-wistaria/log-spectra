@@ -29,9 +29,6 @@ export async function POST(request: Request) {
       data: {
         name: body.name.trim(),
         description: body.description?.trim() || null,
-        hostname: body.hostname?.trim() || null,
-        ip_address: body.ip_address?.trim() || null,
-        os: body.os?.trim() || null,
       },
     });
 
@@ -49,7 +46,7 @@ export async function POST(request: Request) {
       data: {
         agent: {
           id: agent.id,
-          server_id: agent.server_id,
+          machine_id: agent.machine_id,
           name: agent.name,
           description: agent.description,
           hostname: agent.hostname,

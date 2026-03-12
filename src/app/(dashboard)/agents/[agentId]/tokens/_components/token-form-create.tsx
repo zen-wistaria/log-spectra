@@ -11,7 +11,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
+import { FieldGroup } from "@/components/ui/field";
 import { useCreateToken } from "@/query/token.query";
 import { type TokenCreate, TokenCreateSchema } from "@/schema/token.schema";
 
@@ -59,33 +59,10 @@ export default function TokenCreateForm({
               Tokens are secure, randomly generated strings used to authenticate
               your agent.
             </div>
-            <form.Field name="is_active">
-              {(field) => (
-                <Field orientation="horizontal">
-                  <FieldLabel htmlFor={field.name} className="flex-1">
-                    Active
-                  </FieldLabel>
-                  <select
-                    id={field.name}
-                    value={field.state.value ? "true" : "false"}
-                    onChange={(e) =>
-                      field.handleChange(e.target.value === "true")
-                    }
-                    className="h-9 rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
-                  >
-                    <option value="true">Active</option>
-                    <option value="false">Inactive</option>
-                  </select>
-                </Field>
-              )}
-            </form.Field>
           </FieldGroup>
         </form>
       </CardContent>
       <CardFooter className="justify-end gap-2">
-        <Button type="button" variant="outline" onClick={() => form.reset()}>
-          Reset
-        </Button>
         <Button type="submit" form="token-create-form" disabled={isPending}>
           {isPending && <Loader2Icon className="mr-2 h-4 w-4 animate-spin" />}
           Create Token

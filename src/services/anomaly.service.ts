@@ -161,7 +161,7 @@ export class AnomalyService {
     const [totalLogs, activeAgents, totalAgents, highRiskIps] =
       await Promise.all([
         prisma.anomalyLog.count(),
-        prisma.agent.count({ where: { status: true } }),
+        prisma.agent.count({ where: { status: "online" } }),
         prisma.agent.count(),
         prisma.anomalyLog.count({
           where: { risk_category: { equals: "HIGH", mode: "insensitive" } },

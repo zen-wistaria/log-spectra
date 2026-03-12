@@ -24,12 +24,12 @@ import {
 } from "@/components/ui/dropdown-menu";
 import type { IColumns } from "./agent-columns";
 import AgentDeleteDialog from "./agent-dialog-delete";
+import AgentUpdateForm from "./agent-form-update";
 
 export default function CellActions({ row }: { row: IColumns }) {
   const [isDropdownMenuOpen, setIsDropdownMenuOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
 
   const router = useRouter();
 
@@ -52,6 +52,15 @@ export default function CellActions({ row }: { row: IColumns }) {
           <DropdownMenuLabel>Actions</DropdownMenuLabel>
           <CopyClipboardDropdownMenuItem textToCopy={String(row.id)} />
           <DropdownMenuSeparator />
+          <DropdownMenuItem
+            onSelect={() => {
+              setIsEditModalOpen(true);
+              setIsDropdownMenuOpen(false);
+            }}
+          >
+            <Pencil className="size-4" />
+            Edit
+          </DropdownMenuItem>
           <DropdownMenuItem
             onSelect={() => {
               router.push(`/agents/${row.id}/tokens`);
@@ -80,18 +89,21 @@ export default function CellActions({ row }: { row: IColumns }) {
         onOpenChange={setIsDeleteDialogOpen}
         onSuccess={() => setIsDeleteDialogOpen(false)}
       />
-      {/* <Modal
-        title="Edit Proxy Host"
+      <Modal
+        title="Edit Agent"
         isOpen={isEditModalOpen}
         onClose={() => setIsEditModalOpen(false)}
       >
-        <ProxyHostEditForm
-          data={row}
-          permissions={permissions}
+        <AgentUpdateForm
+          key={`agent-${row.id}`}
+          agent={{
+            ...row,
+            description: row.description || "",
+            machine_id: row.machine_id || "",
+          }}
           onSuccess={() => setIsEditModalOpen(false)}
-          policy={policy}
         />
-      </Modal> */}
+      </Modal>
       {/* <Modal
         title="Detail Proxy Host"
         isOpen={isDetailModalOpen}

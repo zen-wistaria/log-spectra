@@ -20,7 +20,7 @@ model Agent {
   os          String?
   machine_id  String?   @map("machine_id")
   version     String?
-  status      Boolean   @default(false)
+  status      String   @default("offline")
   last_seen   DateTime?
   created_at  DateTime  @default(now())
   updated_at  DateTime  @updatedAt

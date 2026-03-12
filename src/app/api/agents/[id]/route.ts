@@ -88,7 +88,7 @@ export async function PATCH(request: Request, { params }: RouteParams) {
           ip_address: body.ip_address?.trim() || null,
         }),
         ...(body.os !== undefined && { os: body.os?.trim() || null }),
-        ...(body.status !== undefined && { status: Boolean(body.status) }),
+        ...(body.status !== undefined && { status: body.status }),
       },
     });
 
@@ -125,7 +125,7 @@ export async function DELETE(_request: Request, { params }: RouteParams) {
       // Soft delete agent
       prisma.agent.update({
         where: { id },
-        data: { status: false },
+        data: { status: "deleted" },
       }),
     ]);
 
