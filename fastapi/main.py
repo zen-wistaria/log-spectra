@@ -9,15 +9,15 @@ import os
 from fastapi import FastAPI, File, UploadFile, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
-# from pathlib import Path
+from pathlib import Path
 
 from log_parser import parse_log_content
 from analyzer import feature_engineering, detect_anomalies
 from risk_scoring import calculate_risk
 
-# env_path = Path(__file__).resolve().parent.parent / ".env"
-# load_dotenv(env_path)
-load_dotenv()
+env_path = Path(__file__).resolve().parent.parent / ".env"
+load_dotenv(env_path)
+# load_dotenv()
 
 # ── Logging ──────────────────────────────────────────────────
 
