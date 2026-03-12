@@ -126,10 +126,10 @@ export const getColumns = (): ColumnDef<IColumns>[] => [
     id: "logs",
     accessorKey: "logs",
     meta: {
-      label: "Collected Logs",
+      label: "Collected IPs",
     },
     header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="Collected Logs" />
+      <DataTableColumnHeader column={column} title="Collected IPs" />
     ),
     cell: ({ row }) => (
       <div className="text-xs">{row.original._count.anomaly_logs}</div>
