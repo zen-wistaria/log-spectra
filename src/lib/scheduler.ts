@@ -1,53 +1,81 @@
 import cron from "node-cron";
-import { AgentService } from "@/services/agent.service";
+import prisma from "@/lib/prisma";
 
 let isSchedulerRunning = false;
 
+/** Default timeout in seconds before an agent is considered offline. */
+const DEFAULT_AGENT_TIMEOUT_SECONDS = 600; // 10 minutes
+
 /**
- * SSL Auto-Renewal Cron Scheduler
- * Runs daily at 01:00 AM to check and renew expiring certificates
+ * Parse the agent timeout from the AGENT_TIMEOUT env var.
+ * Returns the value in *milliseconds*.
+ * Falls back to DEFAULT_AGENT_TIMEOUT_SECONDS if unset or invalid.
+ */
+function getAgentTimeoutMs(): number {
+  const raw = process.env.AGENT_TIMEOUT;
+  if (!raw) return DEFAULT_AGENT_TIMEOUT_SECONDS * 1000;
+
+  const parsed = Number(raw);
+  if (Number.isNaN(parsed) || parsed <= 0) {
+    console.warn(
+      `[CRON] Invalid AGENT_TIMEOUT="${raw}", using default ${DEFAULT_AGENT_TIMEOUT_SECONDS}s`,
+    );
+    return DEFAULT_AGENT_TIMEOUT_SECONDS * 1000;
+  }
+
+  return parsed * 1000;
+}
+
+/**
+ * Agent Online/Offline Status Checker
+ *
+ * Schedules a cron job that runs every minute to mark agents
+ * whose last heartbeat exceeds the configured timeout as "offline".
+ *
+ * Uses a single `updateMany` query instead of fetching + looping
+ * for better performance and reduced database round-trips.
  */
 export function checkAgentStatus() {
   if (isSchedulerRunning) {
-    console.log("Agent status check scheduler is already running");
+    console.info("[CRON] Agent status check scheduler is already running");
     return;
   }
 
-  // Cron expression: minute hour day month weekday
-  cron.schedule("*/1 * * * *", async () => {
-    console.log("[CRON] Starting scheduled agent status check...");
+  isSchedulerRunning = true;
+  console.info("[CRON] Agent status check scheduler started");
 
+  // Run every minute: checks all "online" agents and marks stale ones "offline"
+  cron.schedule("*/1 * * * *", async () => {
     try {
-      const interval = Number(process.env.AGENT_CHECK_INTERVAL);
-      if (Number.isNaN(interval)) {
+      const timeoutMs = getAgentTimeoutMs();
+      const cutoff = new Date(Date.now() - timeoutMs);
+
+      // Single query: mark all online agents whose last_seen is older
+      // than the cutoff (or null) as offline
+      const result = await prisma.agent.updateMany({
+        where: {
+          status: "online",
+          OR: [{ last_seen: { lt: cutoff } }, { last_seen: null }],
+        },
+        data: {
+          status: "offline",
+        },
+      });
+
+      if (result.count > 0) {
         console.info(
-          "Env AGENT_CHECK_INTERVAL is not defined or not a valid number, using default (300 seconds)",
+          `[CRON] Marked ${result.count} agent(s) as offline (timeout: ${timeoutMs / 1000}s, cutoff: ${cutoff.toISOString()})`,
         );
       }
-
-      const results = await AgentService.getActiveAgents();
-      if (results) {
-        for (const agent of results) {
-          if (agent.last_seen) {
-            if (Date.now() - agent.last_seen.getTime() > interval) {
-              await AgentService.updateAgentStatus(agent.id, "offline");
-            }
-          }
-        }
-      }
     } catch (error) {
-      console.error("[CRON] Agent check failed:", error);
+      console.error("[CRON] Agent status check failed:", error);
     }
   });
-
-  isSchedulerRunning = true;
 }
 
 /**
  * Stop the scheduler (for graceful shutdown)
  */
 export function stopAgentStatusCheckScheduler() {
-  // node-cron doesn't have a built-in stop for all tasks
-  // but we can flag it as not running
   isSchedulerRunning = false;
 }

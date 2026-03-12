@@ -45,7 +45,7 @@ app.add_middleware(
 
 # ── Constants ────────────────────────────────────────────────
 
-MAX_FILE_SIZE = int(os.getenv("MAX_FILE_SIZE_MB", 50)) * 1024 * 1024  # 50 MB
+MAX_UPLOAD_SIZE_MB = int(os.getenv("MAX_UPLOAD_SIZE_MB", 50)) * 1024 * 1024  # 50 MB
 ALLOWED_EXTENSIONS = {".log", ".txt"}
 
 # ── Endpoint ─────────────────────────────────────────────────
@@ -73,10 +73,10 @@ async def analyze_log(file: UploadFile = File(...)):
 
     # 2. Read file content with size limit
     content_bytes = await file.read()
-    if len(content_bytes) > MAX_FILE_SIZE:
+    if len(content_bytes) > MAX_UPLOAD_SIZE_MB:
         raise HTTPException(
             status_code=413,
-            detail=f"File too large. Maximum size: {MAX_FILE_SIZE // (1024 * 1024)}MB",
+            detail=f"File too large. Maximum size: {MAX_UPLOAD_SIZE_MB // (1024 * 1024)}MB",
         )
 
     try:
