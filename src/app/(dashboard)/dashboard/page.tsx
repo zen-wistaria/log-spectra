@@ -17,7 +17,7 @@ export default async function DashboardPage() {
         {/* Summary cards */}
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <SummaryCard
-            title="Total Anomaly Logs"
+            title="Total Reported IPs"
             value={stats.totalLogs.toLocaleString()}
             delta="from database"
           />

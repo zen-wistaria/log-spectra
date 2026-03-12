@@ -53,6 +53,7 @@ interface DataTableProps<TData, TValue> {
   emptyStateDescription?: string;
   onCreateNew?: () => void;
   createButtonText?: string;
+  rowClassName?: (row: TData) => string;
 }
 
 export function DataTable<TData, TValue>({
@@ -72,6 +73,7 @@ export function DataTable<TData, TValue>({
   emptyStateDescription,
   onCreateNew,
   createButtonText = "Create New",
+  rowClassName,
 }: DataTableProps<TData, TValue>) {
   const [sorting, setSorting] = useState<SortingState>(defaultSorting);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
@@ -207,6 +209,7 @@ export function DataTable<TData, TValue>({
                   <TableRow
                     key={row.id}
                     data-state={row.getIsSelected() && "selected"}
+                    className={rowClassName?.(row.original)}
                   >
                     {row.getVisibleCells().map((cell) => (
                       <TableCell key={cell.id}>

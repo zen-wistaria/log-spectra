@@ -1,6 +1,11 @@
 "use client";
 
-import { Activity } from "lucide-react";
+import {
+  Activity,
+  AlertTriangle,
+  ShieldAlert,
+  ShieldCheck,
+} from "lucide-react";
 import { useEffect, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -43,6 +48,17 @@ function getRiskBadgeClass(category: string): string {
   if (c === "HIGH") return "bg-red-500/10 text-red-500";
   if (c === "MEDIUM") return "bg-yellow-500/10 text-yellow-500";
   return "bg-green-500/10 text-green-500";
+}
+
+function getRiskRowClass(category: string) {
+  switch (category) {
+    case "HIGH":
+      return "bg-red-500/10 hover:bg-red-500/15 dark:bg-red-500/10 dark:hover:bg-red-500/20";
+    case "MEDIUM":
+      return "bg-yellow-500/10 hover:bg-yellow-500/15 dark:bg-yellow-500/10 dark:hover:bg-yellow-500/20";
+    default:
+      return "bg-green-500/5 hover:bg-green-500/10 dark:bg-green-500/5 dark:hover:bg-green-500/10";
+  }
 }
 
 export function LatestAgentReports() {
@@ -97,39 +113,66 @@ export function LatestAgentReports() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {reports.map((report) => (
-                <TableRow key={report.id}>
-                  <TableCell className="font-medium">
-                    {report.agent.name}
-                  </TableCell>
-                  <TableCell className="text-sm text-muted-foreground">
-                    {report.agent.hostname ?? "—"}
-                  </TableCell>
-                  <TableCell className="font-mono text-sm text-muted-foreground">
-                    {report.agent.ip_address ?? "—"}
-                  </TableCell>
-                  <TableCell className="font-mono text-sm">
-                    {report.ip}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    {report.request_count.toLocaleString()}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    {report.error_count.toLocaleString()}
-                  </TableCell>
-                  <TableCell>
-                    <Badge
-                      variant="secondary"
-                      className={getRiskBadgeClass(report.risk_category)}
-                    >
-                      {report.risk_category}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-sm text-muted-foreground">
-                    {formatDateTime(report.created_at)}
-                  </TableCell>
-                </TableRow>
-              ))}
+              {reports.map((report) => {
+                const low = report.risk_category.toLowerCase() === "low";
+                const medium = report.risk_category.toLowerCase() === "medium";
+                const high = report.risk_category.toLowerCase() === "high";
+                return (
+                  <TableRow
+                    key={report.id}
+                    className={getRiskRowClass(report.risk_category)}
+                  >
+                    <TableCell className="text-xs font-medium">
+                      {report.agent.name}
+                    </TableCell>
+                    <TableCell className="text-xs text-muted-foreground">
+                      {report.agent.hostname ?? "—"}
+                    </TableCell>
+                    <TableCell className="text-xs font-mono text-muted-foreground">
+                      {report.agent.ip_address ?? "—"}
+                    </TableCell>
+                    <TableCell className="text-xs font-mono">
+                      {report.ip}
+                    </TableCell>
+                    <TableCell className="text-xs text-right">
+                      {report.request_count.toLocaleString()}
+                    </TableCell>
+                    <TableCell className="text-xs text-right">
+                      {report.error_count.toLocaleString()}
+                    </TableCell>
+                    <TableCell className="text-xs">
+                      <Badge
+                        variant={
+                          low
+                            ? "green-subtle"
+                            : medium
+                              ? "yellow-subtle"
+                              : high
+                                ? "red-subtle"
+                                : "gray-subtle"
+                        }
+                        className="gap-1"
+                      >
+                        {low ? (
+                          <ShieldCheck className="text-green-500" />
+                        ) : medium ? (
+                          <AlertTriangle className="text-yellow-500" />
+                        ) : high ? (
+                          <ShieldAlert className="text-red-500" />
+                        ) : (
+                          ""
+                        )}
+                        <div className="text-[10px]">
+                          {report.risk_category}
+                        </div>
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-xs text-muted-foreground">
+                      {formatDateTime(report.created_at)}
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
             </TableBody>
           </Table>
         )}

@@ -89,10 +89,39 @@ export class AnomalyService {
   }
 
   static async total(agentId?: string) {
+    const where: Prisma.AnomalyLogWhereInput = {};
+
+    if (agentId) {
+      where.agent_id = agentId;
+    }
+
     return await prisma.anomalyLog.count({
-      where: {
-        agent_id: agentId,
-      },
+      where,
+    });
+  }
+
+  static async countRiskCategory({
+    riskCategory,
+    agentId,
+  }: {
+    riskCategory: string;
+    agentId?: string;
+  }) {
+    const where: Prisma.AnomalyLogWhereInput = {};
+    if (agentId) {
+      where.AND = [
+        {
+          agent_id: agentId,
+        },
+        {
+          risk_category: riskCategory.toUpperCase(),
+        },
+      ];
+    } else {
+      where.risk_category = riskCategory.toUpperCase();
+    }
+    return await prisma.anomalyLog.count({
+      where,
     });
   }
 
