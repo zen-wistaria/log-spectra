@@ -27,7 +27,9 @@ export default async function middleware(req: NextRequest) {
 
   /* if access protected pages, redirect to login */
   if (!isAuthenticated && isProtectedPages) {
-    return NextResponse.redirect(new URL("/auth/login", req.url));
+    const loginUrl = new URL("/auth/login", req.url);
+    loginUrl.searchParams.set("callbackUrl", req.nextUrl.pathname);
+    return NextResponse.redirect(loginUrl);
   }
 
   return NextResponse.next();
