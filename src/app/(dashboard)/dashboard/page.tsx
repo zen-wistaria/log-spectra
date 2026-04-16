@@ -21,7 +21,7 @@ export default async function DashboardPage() {
     <div className="flex flex-col gap-4 py-4 md:gap-6 md:py-6 px-4 lg:px-6">
       <div className="space-y-8">
         {/* Summary cards */}
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
           <SummaryCard
             title="Total Reported IPs"
             value={stats.totalLogs.toLocaleString()}

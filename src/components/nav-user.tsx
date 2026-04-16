@@ -1,18 +1,17 @@
 "use client";
 
 import {
-  Bell,
+  // Bell,
   ChevronsUpDown,
-  CreditCard,
-  DotSquare,
+  // CreditCard,
   LogOut,
-  UserCircle,
+  // UserCircle,
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   DropdownMenu,
   DropdownMenuContent,
-  DropdownMenuGroup,
+  // DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,

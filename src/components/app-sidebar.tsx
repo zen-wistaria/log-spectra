@@ -1,6 +1,6 @@
 "use client";
 
-import { ShieldCheck } from "lucide-react";
+import { AudioWaveform } from "lucide-react";
 import Link from "next/link";
 import type * as React from "react";
 import { NavMain } from "@/components/nav-main";
@@ -36,8 +36,8 @@ export function AppSidebar({
               className="data-[slot=sidebar-menu-button]:p-1.5!"
             >
               <Link href="/" className="h-full">
-                <div className="flex justify-between items-center gap-4">
-                  <ShieldCheck className="size-5 scale-150" />
+                <div className="flex justify-between items-center gap-4 ml-1.5">
+                  <AudioWaveform className="size-5 scale-150" />
                   <div className="flex flex-col">
                     <span className="text-base font-semibold font-mono">
                       {appName}
