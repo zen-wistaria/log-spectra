@@ -4,8 +4,8 @@ import { Suspense } from "react";
 import { getRuntimeConfig } from "@/lib/runtime-config";
 import LoginForm from "../../../components/auth/login-form";
 
+const config = getRuntimeConfig();
 export const generateMetadata = (): Metadata => {
-  const config = getRuntimeConfig();
   return {
     title: `Login | ${config.appName}`,
     description: "This is page login to LogSpectra",
@@ -15,7 +15,7 @@ export const generateMetadata = (): Metadata => {
 export default function LoginPage() {
   return (
     <Suspense>
-      <LoginForm />
+      <LoginForm {...config} />
     </Suspense>
   );
 }

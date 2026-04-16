@@ -23,7 +23,19 @@ import { Field, FieldDescription, FieldError, FieldLabel } from "../ui/field";
 import { PasswordInput } from "../ui/password-input";
 import { AuthError } from "./auth-error";
 
-export default function LoginForm() {
+export default function LoginForm({
+  appName = "LogSpectra",
+  appCopyright = "Zen",
+  appCopyrightYear = "2026",
+}: {
+  appName?: string;
+  appCopyright?: string;
+  appCopyrightYear?: string;
+}) {
+  const params = useSearchParams();
+  const callbackUrl = params.get("callbackUrl") || "/dashboard";
+  const router = useRouter();
+
   const form = useForm({
     defaultValues: {
       username: "",
@@ -54,9 +66,6 @@ export default function LoginForm() {
       }
     },
   });
-  const params = useSearchParams();
-  const callbackUrl = params.get("callbackUrl") || "/dashboard";
-  const router = useRouter();
 
   return (
     <div className="flex h-screen flex-col items-center justify-center">
@@ -71,7 +80,9 @@ export default function LoginForm() {
               <AudioWaveform className="w-24 h-24 text-background" />
             </div>
             <div className="pb-4">
-              <span className="text-background text-sm">Zen &copy; 2026</span>
+              <span className="text-background text-sm">
+                {appCopyright} &copy; {appCopyrightYear}
+              </span>
             </div>
           </div>
           <Card className="flex max-w-sm flex-row justify-between rounded-none border-none px-2 md:min-w-md md:px-4">
@@ -84,7 +95,7 @@ export default function LoginForm() {
             >
               <CardHeader className="mb-8 text-center">
                 <CardTitle className="text-2xl">
-                  Wellcome to LogSpectra
+                  Wellcome to {appName}
                 </CardTitle>
                 <CardDescription className="text-xl">
                   Sign in to continue

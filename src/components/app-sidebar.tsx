@@ -2,6 +2,7 @@
 
 import { AudioWaveform } from "lucide-react";
 import Link from "next/link";
+import type { Session } from "next-auth";
 import type * as React from "react";
 import { NavMain } from "@/components/nav-main";
 import { NavSecondary } from "@/components/nav-secondary";
@@ -21,11 +22,16 @@ export function AppSidebar({
   props,
   appName,
   appAuthor,
+  session,
 }: {
   props: React.ComponentProps<typeof Sidebar>;
   appName: string;
   appAuthor: string;
+  session: Session;
 }) {
+  menu.user.name = session.user.name ?? "";
+  menu.user.email = session.user.email ?? "";
+  menu.user.avatar = session.user.image ?? "";
   return (
     <Sidebar collapsible="offcanvas" {...props}>
       <SidebarHeader>
