@@ -1,6 +1,6 @@
 import "server-only";
 import { compare } from "bcrypt-ts";
-import NextAuth from "next-auth";
+import NextAuth, { CredentialsSignin } from "next-auth";
 // biome-ignore lint/correctness/noUnusedImports: ...
 import type { JWT } from "next-auth/jwt";
 import Credentials from "next-auth/providers/credentials";
@@ -26,12 +26,12 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         });
 
         if (!user || !password) {
-          throw new Error("Username or password is wrong.");
+          throw new CredentialsSignin("Username or password is wrong.");
         }
 
         const isPasswordValid = await compare(password, user.password);
         if (!isPasswordValid) {
-          throw new Error("Username or password is wrong.");
+          throw new CredentialsSignin("Username or password is wrong.");
         }
         return user;
       },

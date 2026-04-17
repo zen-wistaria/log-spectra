@@ -52,7 +52,7 @@ export default function LoginForm({
           callbackUrl,
         });
 
-        if (!res?.ok) {
+        if (res?.error) {
           toast.error("Username or password is wrong!!");
         } else {
           if (callbackUrl === "/") {
