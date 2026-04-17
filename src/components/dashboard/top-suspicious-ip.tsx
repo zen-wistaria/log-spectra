@@ -185,8 +185,9 @@ export function TopSuspiciousIp() {
 
       {/* Cards grid — top 5 */}
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
-        {topIps.slice(0, 5).map((entry) => (
-          <Card key={entry.ip} className="relative overflow-hidden">
+        {topIps.slice(0, 5).map((entry, idx) => (
+          // biome-ignore lint/suspicious/noArrayIndexKey: idx is safe here
+          <Card key={idx} className="relative overflow-hidden">
             <CardContent className="p-4">
               <p className="mb-1 font-mono text-sm font-semibold truncate">
                 {entry.ip}

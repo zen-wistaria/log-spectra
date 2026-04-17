@@ -21,7 +21,7 @@ export default async function DashboardPage() {
     <div className="flex flex-col gap-4 py-4 md:gap-6 md:py-6 px-4 lg:px-6">
       <div className="space-y-8">
         {/* Summary cards */}
-        <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-4 grid-cols-2 lg:grid-cols-3">
           <SummaryCard
             title="Total Reported IPs"
             value={stats.totalLogs.toLocaleString()}
@@ -44,9 +44,17 @@ export default async function DashboardPage() {
             delta={`${stats.totalAgents - stats.activeAgents} offline`}
           />
           <SummaryCard
+            title="Currently in Reports"
+            value={(
+              stats.totalLogs - stats.totalMarkedAsResolved
+            ).toLocaleString()}
+            delta="Total IPs in reports"
+          />
+          <SummaryCard
             title="Resolved"
             value={stats.totalMarkedAsResolved.toLocaleString()}
-            delta=""
+            delta="IPs marked as resolved"
+            variant="success"
           />
         </div>
 
@@ -69,13 +77,19 @@ function SummaryCard({
   title: string;
   value: string;
   delta: string;
-  variant?: "default" | "danger";
+  variant?: "default" | "danger" | "success";
 }) {
   return (
     <div className="rounded-xl border bg-card p-5 shadow-sm">
       <p className="text-sm text-muted-foreground">{title}</p>
       <p
-        className={`mt-1 text-2xl font-bold tracking-tight ${variant === "danger" ? "text-red-500" : ""}`}
+        className={`mt-1 text-2xl font-bold tracking-tight ${
+          variant === "danger"
+            ? "text-red-500"
+            : variant === "success"
+              ? "text-green-500"
+              : ""
+        }`}
       >
         {value}
       </p>
