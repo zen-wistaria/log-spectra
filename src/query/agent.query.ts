@@ -3,6 +3,7 @@ import { toast } from "sonner";
 import {
   createAgent,
   deleteAgent,
+  getAgentById,
   getAgents,
   updateAgent,
 } from "@/actions/agent";
@@ -16,6 +17,17 @@ export const useAgents = (params: GetAgentsParams) => {
       return getAgents(params);
     },
     enabled: !!params,
+  });
+};
+
+export const useAgentById = (id: string) => {
+  const queryKey = ["agent", id];
+  return useQuery({
+    queryKey,
+    queryFn: () => {
+      return getAgentById(id);
+    },
+    enabled: !!id,
   });
 };
 

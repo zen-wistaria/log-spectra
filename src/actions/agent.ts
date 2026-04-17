@@ -30,3 +30,7 @@ export async function updateAgent(data: AgentUpdate) {
 export async function deleteAgent(id: string) {
   return AgentService.deleteAgent(id);
 }
+
+export async function getAgentById(id: string) {
+  return AgentService.getAgentById(id);
+}
