@@ -48,9 +48,13 @@ def build_payload(server_id: str, result_df, max_ips: int, sys_info: dict) -> di
         results.append({
             "ip": row["ip"],
             "request_count": int(row["request_count"]),
-            "error_count": int(row["error_count"]),
+            "error_count": int(row["error_count"]),       # metadata dari feature_engineering
+            "error_rate": round(float(row["error_rate"]), 4),
             "request_per_second": round(float(row["request_per_second"]), 4),
             "unique_endpoint_ratio": round(float(row["unique_endpoint_ratio"]), 4),
+            "anomaly_score": round(float(row["anomaly_score"]), 4),
+            "model_risk_score": round(float(row["model_risk_score"]), 2),
+            "behavior_risk_score": int(row["behavior_risk_score"]),
             "risk_score": float(row["risk_score"]),
             "risk_category": row["risk_category"],
             "risk_reasons": row["risk_reasons"],

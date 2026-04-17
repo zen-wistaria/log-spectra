@@ -186,4 +186,29 @@ def load_config() -> dict:
         )
         config["heartbeat_interval"] = 30
 
+    # Isolation Forest hanya menerima 0 < contamination <= 0.5
+    # Nilai di luar range ini akan menyebabkan ValueError saat fit()
+    if not (0 < config["contamination"] <= 0.5):
+        logger.warning(
+            "contamination=%.4f out of valid range (0, 0.5], resetting to default 0.02",
+            config["contamination"],
+        )
+        config["contamination"] = 0.02
+
+    # Minimum 10 pohon agar model Isolation Forest stabil
+    if config["n_estimators"] < 10:
+        logger.warning(
+            "n_estimators=%d is too low (min: 10), setting to 10",
+            config["n_estimators"],
+        )
+        config["n_estimators"] = 10
+
+    # Minimum 60 detik agar tidak overload CPU dengan analisis terlalu sering
+    if config["analysis_interval"] < 60:
+        logger.warning(
+            "analysis_interval=%d seconds is too low (min: 60), setting to 60",
+            config["analysis_interval"],
+        )
+        config["analysis_interval"] = 60
+
     return config

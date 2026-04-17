@@ -57,6 +57,16 @@ class LogReader:
     Maintains an in-memory buffer of all parsed log entries.
     Supports logrotate — pygtail tracks file offsets automatically.
     Uses LogAccumulator for disk persistence across log rotations.
+
+    Sinkronisasi buffer in-memory dengan disk:
+    LogAccumulator melakukan trim otomatis di disk ketika file melebihi
+    max_size_mb. Tanpa sinkronisasi, buffer in-memory akan terus tumbuh
+    tidak terbatas meski disk sudah di-trim, yang berpotensi menyebabkan
+    OOM (Out of Memory) pada agent yang berjalan lama.
+
+    Solusi: setelah setiap append ke disk, bandingkan jumlah baris di
+    disk dengan jumlah entri di buffer. Jika disk lebih kecil (sudah
+    di-trim), rebuild buffer dari disk agar keduanya sinkron.
     """
 
     def __init__(self, log_path: str, max_size_mb: int = 200):
@@ -104,6 +114,10 @@ class LogReader:
         Returns list of newly parsed log entries.
         Also appends them to the internal buffer and persists
         raw lines to the accumulated log file.
+
+        Setelah persist ke disk, cek apakah disk di-trim oleh
+        LogAccumulator. Jika ya, sinkronkan buffer in-memory dari disk
+        agar penggunaan memory tetap terkontrol.
         """
         new_entries = []
         raw_lines = []
@@ -137,9 +151,47 @@ class LogReader:
         # Persist raw lines to disk (even if some failed parsing,
         # so we don't lose data for future re-parsing)
         if raw_lines:
+            size_before = self._accumulator.get_file_size_bytes()
             self._accumulator.append_lines(raw_lines)
+            size_after = self._accumulator.get_file_size_bytes()
+
+            # Jika ukuran file disk mengecil, berarti trim terjadi.
+            # Sinkronkan buffer in-memory dari disk agar tidak OOM.
+            if size_after < size_before:
+                logger.info(
+                    "Disk trim detected (%.1fMB → %.1fMB), "
+                    "syncing in-memory buffer from disk...",
+                    size_before / (1024 * 1024),
+                    size_after / (1024 * 1024),
+                )
+                self._sync_buffer_from_disk()
 
         return new_entries
+
+    def _sync_buffer_from_disk(self) -> None:
+        """
+        Rebuild buffer in-memory dari accumulated log di disk.
+
+        Dipanggil setelah LogAccumulator melakukan trim agar
+        buffer in-memory tidak melebihi data yang tersimpan di disk.
+        Ini mencegah akumulasi memory yang tidak terkontrol pada
+        agent yang berjalan selama berhari-hari.
+        """
+        old_size = len(self.buffer)
+        accumulated_lines = self._accumulator.read_all_lines()
+
+        new_buffer = []
+        for line in accumulated_lines:
+            entry = parse_log_line(line)
+            if entry:
+                new_buffer.append(entry)
+
+        self.buffer = new_buffer
+        logger.info(
+            "Buffer synced from disk: %d → %d entries",
+            old_size,
+            len(self.buffer),
+        )
 
     def get_buffer(self) -> list[dict]:
         """Return the full accumulated buffer."""
