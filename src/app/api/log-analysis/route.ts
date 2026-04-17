@@ -43,33 +43,37 @@ async function authenticateRequest(request: Request): Promise<{
     return { valid: false, error: "Empty token" };
   }
 
-  const apiToken = await prisma.apiToken.findUnique({
-    where: { token },
-    include: { agent: true },
-  });
+  try {
+    const apiToken = await prisma.apiToken.findUnique({
+      where: { token },
+      include: { agent: true },
+    });
 
-  if (!apiToken) {
+    if (!apiToken) {
+      return { valid: false, error: "Invalid token" };
+    }
+
+    if (!apiToken.is_active) {
+      return { valid: false, error: "Token is deactivated" };
+    }
+
+    // if (apiToken.agent.status === "deleted") {
+    //   return { valid: false, error: "Agent has been deleted" };
+    // }
+
+    // Update token last_used
+    await prisma.apiToken.update({
+      where: { id: apiToken.id },
+      data: { last_used: new Date() },
+    });
+
+    return {
+      valid: true,
+      agentId: apiToken.agent.id,
+    };
+  } catch {
     return { valid: false, error: "Invalid token" };
   }
-
-  if (!apiToken.is_active) {
-    return { valid: false, error: "Token is deactivated" };
-  }
-
-  // if (apiToken.agent.status === "deleted") {
-  //   return { valid: false, error: "Agent has been deleted" };
-  // }
-
-  // Update token last_used
-  await prisma.apiToken.update({
-    where: { id: apiToken.id },
-    data: { last_used: new Date() },
-  });
-
-  return {
-    valid: true,
-    agentId: apiToken.agent.id,
-  };
 }
 
 // ── POST Handler ────────────────────────────────────────────

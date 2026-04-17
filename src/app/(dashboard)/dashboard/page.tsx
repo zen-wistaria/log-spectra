@@ -43,6 +43,11 @@ export default async function DashboardPage() {
             value={stats.totalAgents.toLocaleString()}
             delta={`${stats.totalAgents - stats.activeAgents} offline`}
           />
+          <SummaryCard
+            title="Resolved"
+            value={stats.totalMarkedAsResolved.toLocaleString()}
+            delta=""
+          />
         </div>
 
         {/* Suspicious IPs */}

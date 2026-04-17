@@ -8,6 +8,7 @@ export interface GetAnomaliesParams {
   search: string;
   sort: string;
   agentId?: string;
+  markedAsResolved?: boolean;
 }
 
 // biome-ignore lint/complexity/noStaticOnlyClass: using for agent services
@@ -17,6 +18,7 @@ export class AnomalyService {
     limit,
     search,
     sort,
+    markedAsResolved = false,
     agentId,
   }: GetAnomaliesParams) {
     const orderBy: Prisma.AnomalyLogOrderByWithRelationInput[] = [];
@@ -66,6 +68,15 @@ export class AnomalyService {
         ],
       });
     }
+    if (markedAsResolved) {
+      where.push({
+        resolved_mark: true,
+      });
+    } else {
+      where.push({
+        resolved_mark: false,
+      });
+    }
     return await prisma.anomalyLog.findMany({
       where: {
         AND: where,
@@ -79,20 +90,32 @@ export class AnomalyService {
     });
   }
 
-  static async updateAnomaly(data: AnomalyUpdate) {
+  static async updateAnomalyResolved(data: AnomalyUpdate) {
     return await prisma.anomalyLog.update({
       where: {
-        id: data.id,
+        agent_id_ip: {
+          agent_id: data.agent_id,
+          ip: data.ip,
+        },
       },
-      data,
+      data: {
+        resolved_mark: data.resolved_mark,
+        resolved_at: data.resolved_at,
+        resolved_notes: data.resolved_notes,
+      },
     });
   }
 
-  static async total(agentId?: string) {
+  static async total(agentId?: string, markedAsResolved: boolean = false) {
     const where: Prisma.AnomalyLogWhereInput = {};
 
     if (agentId) {
       where.agent_id = agentId;
+    }
+    if (markedAsResolved) {
+      where.resolved_mark = true;
+    } else {
+      where.resolved_mark = false;
     }
 
     return await prisma.anomalyLog.count({
@@ -103,9 +126,11 @@ export class AnomalyService {
   static async countRiskCategory({
     riskCategory,
     agentId,
+    markedAsResolved = false,
   }: {
     riskCategory: string;
     agentId?: string;
+    markedAsResolved?: boolean;
   }) {
     const where: Prisma.AnomalyLogWhereInput = {};
     if (agentId) {
@@ -116,9 +141,13 @@ export class AnomalyService {
         {
           risk_category: riskCategory.toUpperCase(),
         },
+        {
+          resolved_mark: markedAsResolved,
+        },
       ];
     } else {
       where.risk_category = riskCategory.toUpperCase();
+      where.resolved_mark = markedAsResolved;
     }
     return await prisma.anomalyLog.count({
       where,
@@ -128,7 +157,10 @@ export class AnomalyService {
   static async getTop10SuspiciousIP() {
     // Try HIGH first, fallback to MEDIUM if none found
     const highResults = await prisma.anomalyLog.findMany({
-      where: { risk_category: { equals: "HIGH", mode: "insensitive" } },
+      where: {
+        risk_category: { equals: "HIGH", mode: "insensitive" },
+        resolved_mark: false,
+      },
       orderBy: { risk_score: "desc" },
       take: 10,
       select: {
@@ -143,7 +175,10 @@ export class AnomalyService {
     if (highResults.length > 0) return highResults;
 
     return await prisma.anomalyLog.findMany({
-      where: { risk_category: { equals: "MEDIUM", mode: "insensitive" } },
+      where: {
+        risk_category: { equals: "MEDIUM", mode: "insensitive" },
+        resolved_mark: false,
+      },
       orderBy: { risk_score: "desc" },
       take: 10,
       select: {
@@ -158,16 +193,59 @@ export class AnomalyService {
   }
 
   static async getDashboardStats() {
-    const [totalLogs, activeAgents, totalAgents, highRiskIps] =
-      await Promise.all([
-        prisma.anomalyLog.count(),
-        prisma.agent.count({ where: { status: "online" } }),
-        prisma.agent.count(),
-        prisma.anomalyLog.count({
-          where: { risk_category: { equals: "HIGH", mode: "insensitive" } },
+    const [agentStats, anomalyStats] = await Promise.all([
+      prisma.agent
+        .aggregate({
+          _count: {
+            _all: true,
+          },
+          where: {},
+        })
+        .then(async (res) => {
+          const active = await prisma.agent.count({
+            where: { status: "online" },
+          });
+
+          return {
+            totalAgents: res._count._all,
+            activeAgents: active,
+          };
         }),
-      ]);
-    return { totalLogs, activeAgents, totalAgents, highRiskIps };
+
+      prisma.anomalyLog.groupBy({
+        by: ["resolved_mark", "risk_category"],
+        _count: {
+          _all: true,
+        },
+      }),
+    ]);
+
+    let totalLogs = 0;
+    let highRiskIps = 0;
+    let totalMarkedAsResolved = 0;
+
+    for (const row of anomalyStats) {
+      totalLogs += row._count._all;
+
+      if (
+        row.risk_category?.toLowerCase() === "high" &&
+        row.resolved_mark === false
+      ) {
+        highRiskIps += row._count._all;
+      }
+
+      if (row.resolved_mark === true) {
+        totalMarkedAsResolved += row._count._all;
+      }
+    }
+
+    return {
+      totalLogs,
+      activeAgents: agentStats.activeAgents,
+      totalAgents: agentStats.totalAgents,
+      highRiskIps,
+      totalMarkedAsResolved,
+    };
   }
 
   static async countHighriskIp() {
@@ -176,6 +254,7 @@ export class AnomalyService {
         risk_category: {
           in: ["high"],
         },
+        resolved_mark: false,
       },
     });
   }
@@ -188,6 +267,22 @@ export class AnomalyService {
       },
       include: {
         agent: true,
+      },
+    });
+  }
+
+  static async getAgentFromAnomalyIps({ ip }: { ip: string }) {
+    return await prisma.anomalyLog.findMany({
+      where: {
+        ip,
+      },
+      select: {
+        agent: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
       },
     });
   }

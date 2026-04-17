@@ -42,6 +42,9 @@ model AnomalyLog {
   risk_score            Float    @default(0)
   risk_category         String   @default("LOW")
   risk_reasons          Json     @default("[]")
+  resolved_mark         Boolean  @default(false)
+  resolved_at           DateTime?
+  resolved_notes        String?
   created_at            DateTime @default(now())
   updated_at            DateTime @updatedAt
 

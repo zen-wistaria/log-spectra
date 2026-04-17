@@ -9,8 +9,8 @@ import { LogsTable } from "./_components/logs-tables";
 export async function generateMetadata(): Promise<Metadata> {
   const config = getRuntimeConfig();
   return {
-    title: `Reports | ${config.appName}`,
-    description: "View all analyzed log entries from agents",
+    title: `Resolved Threats | ${config.appName}`,
+    description: "View all suspicious ips marked as resolved",
   };
 }
 
@@ -22,11 +22,10 @@ export default function AnomaliesLogsPage() {
           <div className="flex items-start justify-between">
             <div>
               <h2 className="text-2xl font-bold tracking-tight">
-                Reported Threats
+                Resolved Threats
               </h2>
               <p className="text-muted-foreground">
-                All log entries analyzed by agents with anomaly detection
-                results.
+                All log entries that have been marked as resolved.
               </p>
             </div>
           </div>

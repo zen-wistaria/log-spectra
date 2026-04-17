@@ -1,5 +1,6 @@
 import {
   ChartBarDecreasing,
+  FileCheck,
   FileSearch,
   // HandHelping,
   HatGlasses,
@@ -30,6 +31,11 @@ export const menu = {
       title: "Reports",
       url: "/reports",
       icon: ChartBarDecreasing,
+    },
+    {
+      title: "Resolved",
+      url: "/resolved",
+      icon: FileCheck,
     },
     {
       title: "Log Analyzer",
