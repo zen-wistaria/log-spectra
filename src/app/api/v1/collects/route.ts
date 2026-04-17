@@ -43,44 +43,40 @@ async function authenticateRequest(request: Request): Promise<{
     return { valid: false, error: "Empty token" };
   }
 
-  try {
-    const apiToken = await prisma.apiToken.findUnique({
-      where: { token },
-      include: { agent: true },
-    });
+  const apiToken = await prisma.apiToken.findUnique({
+    where: { token },
+    include: { agent: true },
+  });
 
-    if (!apiToken) {
-      return { valid: false, error: "Invalid token" };
-    }
-
-    if (!apiToken.is_active) {
-      return { valid: false, error: "Token is deactivated" };
-    }
-
-    // if (apiToken.agent.status === "deleted") {
-    //   return { valid: false, error: "Agent has been deleted" };
-    // }
-
-    // Update token last_used
-    await prisma.apiToken.update({
-      where: { id: apiToken.id },
-      data: { last_used: new Date() },
-    });
-
-    return {
-      valid: true,
-      agentId: apiToken.agent.id,
-    };
-  } catch {
+  if (!apiToken) {
     return { valid: false, error: "Invalid token" };
   }
+
+  if (!apiToken.is_active) {
+    return { valid: false, error: "Token is deactivated" };
+  }
+
+  // if (apiToken.agent.status === "deleted") {
+  //   return { valid: false, error: "Agent has been deleted" };
+  // }
+
+  /* Update token last_used */
+  await prisma.apiToken.update({
+    where: { id: apiToken.id },
+    data: { last_used: new Date() },
+  });
+
+  return {
+    valid: true,
+    agentId: apiToken.agent.id,
+  };
 }
 
 // ── POST Handler ────────────────────────────────────────────
 
 export async function POST(request: Request) {
   try {
-    // 1. Authenticate
+    /* Authenticate */
     const auth = await authenticateRequest(request);
     if (!auth.valid) {
       return NextResponse.json(
@@ -89,10 +85,9 @@ export async function POST(request: Request) {
       );
     }
 
-    // 2. Parse body
     const body: AnalysisPayload = await request.json();
 
-    // 3. Validate payload
+    /* Validate payload */
     if (!body.server_id || typeof body.server_id !== "string") {
       return NextResponse.json(
         { status: "error", message: "Missing or invalid server_id" },
@@ -100,7 +95,7 @@ export async function POST(request: Request) {
       );
     }
 
-    // Enforce: token must belong to the agent with this server_id
+    /* Enforce: token must belong to the agent with this server_id */
     const agent = await prisma.agent.findUnique({
       where: {
         id: auth.agentId,
@@ -116,7 +111,7 @@ export async function POST(request: Request) {
       );
     }
     if (!agent.machine_id) {
-      // registration
+      /* registration */
       await prisma.agent.update({
         where: {
           id: auth.agentId,
@@ -155,7 +150,7 @@ export async function POST(request: Request) {
       );
     }
 
-    // 4. Validate each result
+    /* Validate each result */
     for (const result of body.results) {
       if (!result.ip || typeof result.ip !== "string") {
         return NextResponse.json(
@@ -179,12 +174,12 @@ export async function POST(request: Request) {
 
     const agentId = auth.agentId as string;
 
-    // Collect current report IPs for cleanup
-    const currentIps = body.results.map((r) => r.ip);
+    /* Collect current report IPs for cleanup */
+    // const currentIps = body.results.map((r) => r.ip);
 
     await prisma.$transaction(async (tx) => {
-      // Upsert each result — replace (not increment) since agent
-      // now sends analysis of the full accumulated buffer
+      /* Upsert each result — replace (not increment) since agent
+       now sends analysis of the full accumulated buffer */
       for (const result of body.results) {
         const riskReasons = Array.isArray(result.risk_reasons)
           ? result.risk_reasons
@@ -216,15 +211,15 @@ export async function POST(request: Request) {
         });
       }
 
-      // Remove stale IPs no longer present in the latest report
-      await tx.anomalyLog.deleteMany({
-        where: {
-          agent_id: agentId,
-          ip: { notIn: currentIps },
-        },
-      });
+      /* Remove stale IPs no longer present in the latest report */
+      // await tx.anomalyLog.deleteMany({
+      //   where: {
+      //     agent_id: agentId,
+      //     ip: { notIn: currentIps },
+      //   },
+      // });
 
-      // Update agent metadata
+      /* Update agent metadata */
       await tx.agent.update({
         where: { id: agentId },
         data: {

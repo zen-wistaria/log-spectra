@@ -18,7 +18,7 @@ HEARTBEAT_INTERVAL_MAX = 600      # Hard cap for heartbeat interval (10 minutes)
 DEFAULTS = {
     "log_path": "/var/log/nginx/access.log",
     "server_url": "http://localhost:3000",
-    "api_endpoint": "/api/log-analysis",
+    "api_endpoint": "/api/v1/collects",
     "server_id": "server-01",
     "auth_token": "",
     "contamination": 0.02,
@@ -30,7 +30,7 @@ DEFAULTS = {
     "min_log_lines": 100,                # Minimum lines before first analysis
     "accumulated_log_max_size_mb": 200,   # Max accumulated log file size (MB)
     "max_ips_per_report": 10,             # Number of top-risk IPs to send per report
-    "heartbeat_endpoint": "/api/agents/heartbeat",  # Heartbeat API endpoint path
+    "heartbeat_endpoint": "/api/v1/agents/heartbeat",  # Heartbeat API endpoint path
     "heartbeat_interval": 300,  # Heartbeat interval in seconds (5 minutes)
 }
 
