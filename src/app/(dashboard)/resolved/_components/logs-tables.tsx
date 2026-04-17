@@ -153,8 +153,12 @@ export function LogsTable() {
               "agent-ip": false,
               "agent-hostname": false,
               agent_id: false,
+              request_count: false,
+              error_count: false,
+              request_per_second: false,
+              unique_endpoint_ratio: false,
             }}
-            defaultSorting={[{ id: "updated_at", desc: true }]}
+            defaultSorting={[{ id: "resolved_at", desc: true }]}
             enableSearch={true}
             enableColumnToggle={true}
             emptyStateTitle="No resolved threats found"

@@ -1,14 +1,17 @@
 "use client";
 
+import type { Agent, AnomalyLog } from "@prisma/client";
 import type { ColumnDef } from "@tanstack/react-table";
 import { AlertTriangle, ShieldAlert, ShieldCheck } from "lucide-react";
-import type { GroupedAnomalyItem } from "@/actions/anomalies";
+// import type { GroupedAnomalyItem } from "@/actions/anomalies";
 import { DataTableColumnHeader } from "@/components/data-tables/data-table-column-header";
 import { Badge } from "@/components/ui/badge";
 import { formatDateTime } from "@/lib/utils";
 import CellActions from "./logs-cell-actions";
 
-export type IColumns = GroupedAnomalyItem;
+export type IColumns = AnomalyLog & {
+  agent: Agent;
+};
 
 export const getColumns = (): ColumnDef<IColumns>[] => [
   {
@@ -81,8 +84,11 @@ export const getColumns = (): ColumnDef<IColumns>[] => [
       />
     ),
     cell: ({ row }) => (
-      <div className="text-xs font-mono">
-        {row.original.agents.map((agent) => agent.name).join(", ")}
+      <div className="text-xs font-mono flex flex-col">
+        {row.original.agent.name}
+        <span className="text-muted-foreground text-[10px]">
+          {row.original.agent.id}
+        </span>
       </div>
     ),
     enableHiding: true,
@@ -250,13 +256,6 @@ export const getColumns = (): ColumnDef<IColumns>[] => [
   },
   {
     id: "actions",
-    accessorKey: "actions",
-    meta: {
-      label: "Actions",
-    },
-    header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="Actions" />
-    ),
     cell: ({ row }) => <CellActions row={row.original} />,
   },
 ];

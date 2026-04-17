@@ -47,6 +47,10 @@ export default function CellActions({ row }: { row: IColumns }) {
             textToCopy={String(row.ip)}
             label="Copy IP"
           />
+          <CopyClipboardDropdownMenuItem
+            textToCopy={String(row.agent_id)}
+            label="Copy Agent ID"
+          />
           <DropdownMenuSeparator />
           <DropdownMenuItem
             onSelect={() => {
@@ -75,24 +79,29 @@ export default function CellActions({ row }: { row: IColumns }) {
           ip: row.ip,
           resolved_at: undefined,
           resolved_notes: undefined,
-          agent_id: row.agents[0].id,
+          agent_id: row.agent_id,
           resolved_mark: false,
+          agents: [row.agent],
         }}
         open={isUnresolvedOpen}
         onOpenChange={setIsUnresolvedOpen}
       />
-      <LogsFormEditNotes
-        open={isEditNotesOpen}
-        onOpenChange={setIsEditNotesOpen}
-        onSubmit={onSubmit}
-        row={{
-          ip: row.ip,
-          resolved_at: undefined,
-          resolved_notes: row.resolved_notes ?? "",
-          agent_id: row.agents[0].id,
-          resolved_mark: row.resolved_mark,
-        }}
-      />
+
+      {isEditNotesOpen && (
+        <LogsFormEditNotes
+          open={isEditNotesOpen}
+          onOpenChange={setIsEditNotesOpen}
+          onSubmit={onSubmit}
+          row={{
+            ip: row.ip,
+            resolved_at: undefined,
+            resolved_notes: row.resolved_notes ?? "",
+            agent_id: row.agent_id,
+            resolved_mark: row.resolved_mark,
+            agents: [row.agent],
+          }}
+        />
+      )}
     </div>
   );
 }

@@ -24,13 +24,24 @@ export const AnomalyCreateSchema = anomalySchema.omit({
   updatedAt: true,
 });
 
-export const AnomalyUpdateSchema = anomalySchema.pick({
-  resolved_mark: true,
-  resolved_at: true,
-  resolved_notes: true,
-  agent_id: true,
-  ip: true,
-});
+export const AnomalyUpdateSchema = anomalySchema
+  .pick({
+    resolved_mark: true,
+    resolved_at: true,
+    resolved_notes: true,
+    agent_id: true,
+    ip: true,
+  })
+  .extend({
+    agents: z
+      .array(
+        z.object({
+          id: z.string(),
+          name: z.string().optional(),
+        }),
+      )
+      .optional(),
+  });
 
 export type AnomalyCreate = z.infer<typeof AnomalyCreateSchema>;
 export type AnomalyUpdate = z.infer<typeof AnomalyUpdateSchema>;

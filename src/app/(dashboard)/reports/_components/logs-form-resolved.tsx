@@ -13,16 +13,11 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { FieldError } from "@/components/ui/field";
-import { Label } from "@/components/ui/label";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Switch } from "@/components/ui/switch";
+  FieldDescription,
+  FieldError,
+  FieldLabel,
+} from "@/components/ui/field";
 import { Textarea } from "@/components/ui/textarea";
 import { useGetAgentFromAnomalyIps } from "@/query/anomaly.query";
 import {
@@ -45,14 +40,18 @@ export default function LogsFormResolved({
 }: LogsFormResolvedProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const { data, isPending } = useGetAgentFromAnomalyIps(row.ip);
+  const { data, isPending } = useGetAgentFromAnomalyIps({
+    ip: row.ip,
+    fetch: open,
+  });
 
   const form = useForm({
     defaultValues: {
-      resolved_mark: row.resolved_mark,
+      resolved_mark: true,
       resolved_notes: row.resolved_notes,
       ip: row.ip,
       agent_id: row.agent_id,
+      agents: [{ id: row.agent_id }],
     } as AnomalyUpdate,
     validators: {
       onSubmit: AnomalyUpdateSchema,
@@ -88,8 +87,8 @@ export default function LogsFormResolved({
           <DialogTitle>Mark as Resolved</DialogTitle>
           <DialogDescription>
             Resolve anomaly for IP{" "}
-            <span className="font-mono font-bold">{row.ip}</span>. Select the
-            reporting agent and add notes.
+            <span className="font-mono font-bold">{row.ip}</span>. <br />
+            Select the reporting agents and add notes.
           </DialogDescription>
         </DialogHeader>
 
@@ -107,30 +106,67 @@ export default function LogsFormResolved({
               Loading agents...
             </div>
           ) : (
-            <form.Field name="agent_id">
+            <form.Field name="agents" mode="array">
               {(field) => {
                 const isInvalid =
                   field.state.meta.isTouched &&
                   field.state.meta.errors.length > 0;
+
+                const selectedAgents = (field.state.value ?? []) as {
+                  id: string;
+                }[];
+                const selectedIds = selectedAgents.map((a) => a.id);
+
                 return (
                   <div className="space-y-2">
-                    <Label htmlFor={field.name}>Reporting Agent</Label>
-                    <Select
-                      onValueChange={field.handleChange}
-                      defaultValue={row.agent_id}
-                      value={field.state.value}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select an agent" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {data?.map((data) => (
-                          <SelectItem key={data.agent.id} value={data.agent.id}>
-                            {data.agent.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <FieldLabel>Reporting Agents</FieldLabel>
+                    <div className="space-y-2 rounded-md border p-3">
+                      {data?.map((item) => {
+                        const checked = selectedIds.includes(item.agent.id);
+                        const isCurrentAgent = item.agent.id === row.agent_id;
+
+                        return (
+                          <div
+                            key={item.agent.id}
+                            className="flex items-center space-x-2"
+                          >
+                            <Checkbox
+                              id={`agent-${item.agent.id}`}
+                              checked={checked}
+                              onCheckedChange={(checkedState) => {
+                                if (checkedState) {
+                                  field.handleChange([
+                                    ...selectedAgents,
+                                    { id: item.agent.id },
+                                  ]);
+                                } else {
+                                  if (isCurrentAgent) return;
+                                  field.handleChange(
+                                    selectedAgents.filter(
+                                      (a) => a.id !== item.agent.id,
+                                    ),
+                                  );
+                                }
+                              }}
+                            />
+                            <FieldLabel
+                              htmlFor={`agent-${item.agent.id}`}
+                              className="cursor-pointer font-normal"
+                            >
+                              {item.agent.name}
+                              {isCurrentAgent && (
+                                <span className="ml-2 text-xs text-muted-foreground">
+                                  (current)
+                                </span>
+                              )}
+                            </FieldLabel>
+                          </div>
+                        );
+                      })}
+                    </div>
+                    <FieldDescription>
+                      These agents also reporting ip <strong>{row.ip}</strong>.
+                    </FieldDescription>
                     {isInvalid && (
                       <FieldError errors={field.state.meta.errors} />
                     )}
@@ -140,24 +176,6 @@ export default function LogsFormResolved({
             </form.Field>
           )}
 
-          <form.Field name="resolved_mark">
-            {(field) => (
-              <div className="flex items-center space-x-2">
-                <Label
-                  htmlFor="resolved_mark"
-                  className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-                >
-                  Mark as Resolved
-                </Label>
-                <Switch
-                  id={field.name}
-                  checked={field.state.value}
-                  onCheckedChange={field.handleChange}
-                />
-              </div>
-            )}
-          </form.Field>
-
           <form.Field name="resolved_notes">
             {(field) => {
               const isInvalid =
@@ -165,7 +183,7 @@ export default function LogsFormResolved({
                 field.state.meta.errors.length > 0;
               return (
                 <div className="space-y-2">
-                  <Label htmlFor={field.name}>Resolution Notes</Label>
+                  <FieldLabel htmlFor={field.name}>Resolution Notes</FieldLabel>
                   <Textarea
                     id={field.name}
                     value={field.state.value}
@@ -174,6 +192,9 @@ export default function LogsFormResolved({
                     className="resize-none"
                   />
                   {isInvalid && <FieldError errors={field.state.meta.errors} />}
+                  <FieldDescription>
+                    Add notes to explain why this is resolved.
+                  </FieldDescription>
                 </div>
               );
             }}

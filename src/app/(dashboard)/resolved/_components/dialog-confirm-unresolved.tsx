@@ -39,6 +39,7 @@ export default function DialogConfirmUnresolved({
       resolved_notes: row.resolved_notes,
       ip: row.ip,
       agent_id: row.agent_id,
+      agents: [{ id: row.agent_id }],
     } as AnomalyUpdate,
     validators: {
       onSubmit: AnomalyUpdateSchema,
@@ -74,7 +75,10 @@ export default function DialogConfirmUnresolved({
           <DialogTitle>Mark as Unresolved</DialogTitle>
           <DialogDescription>
             Mark anomaly for IP{" "}
-            <span className="font-mono font-bold">{row.ip}</span> as unresolved.
+            <span className="font-mono font-bold">{row.ip}</span> as unresolved.{" "}
+            <br />
+            Reported by agent{" "}
+            <span className="font-mono font-bold">{row.agents?.[0]?.name}</span>
           </DialogDescription>
         </DialogHeader>
 

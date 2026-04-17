@@ -46,39 +46,25 @@ export const getColumns = (): ColumnDef<IColumns>[] => [
     enableHiding: true,
   },
   {
-    id: "agent_id",
-    accessorKey: "agent_id",
-    meta: {
-      label: "Agent ID",
-    },
-    header: ({ column }) => (
-      <DataTableColumnHeader
-        column={column}
-        title="Agent ID"
-        disableColumnHide={false}
-      />
-    ),
-    cell: ({ row }) => (
-      <div className="text-xs font-mono">{row.original.agent_id}</div>
-    ),
-    enableHiding: true,
-    enableSorting: true,
-  },
-  {
     id: "agent-name",
     accessorKey: "agent-name",
     meta: {
-      label: "Agent Name",
+      label: "Agents",
     },
     header: ({ column }) => (
       <DataTableColumnHeader
         column={column}
-        title="Agent Name"
+        title="Agents"
         disableColumnHide={false}
       />
     ),
     cell: ({ row }) => (
-      <div className="text-xs font-mono">{row.original.agent.name}</div>
+      <div className="text-xs font-mono flex flex-col">
+        {row.original.agent.name}
+        <span className="text-muted-foreground text-[10px]">
+          {row.original.agent.id}
+        </span>
+      </div>
     ),
     enableHiding: true,
     enableSorting: true,
@@ -324,13 +310,6 @@ export const getColumns = (): ColumnDef<IColumns>[] => [
   },
   {
     id: "actions",
-    accessorKey: "actions",
-    meta: {
-      label: "Actions",
-    },
-    header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="Actions" />
-    ),
     cell: ({ row }) => <CellActions row={row.original} />,
   },
 ];

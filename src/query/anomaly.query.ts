@@ -30,14 +30,20 @@ export const useResolvedAnomalies = (params: GetAnomaliesParams) => {
   });
 };
 
-export const useGetAgentFromAnomalyIps = (ip: string) => {
+export const useGetAgentFromAnomalyIps = ({
+  ip,
+  fetch,
+}: {
+  ip: string;
+  fetch?: boolean;
+}) => {
   const queryKey = ["agent-from-anomaly-ips", ip];
   return useQuery({
     queryKey,
     queryFn: () => {
       return getAgentFromAnomalyIps(ip);
     },
-    enabled: !!ip,
+    enabled: !!ip && (fetch ?? true),
   });
 };
 

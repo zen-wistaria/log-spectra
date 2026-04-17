@@ -41,7 +41,14 @@ export default function CellActions({ row }: { row: IColumns }) {
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
           <DropdownMenuLabel>Actions</DropdownMenuLabel>
-          <CopyClipboardDropdownMenuItem textToCopy={String(row.id)} />
+          <CopyClipboardDropdownMenuItem
+            textToCopy={String(row.ip)}
+            label="Copy IP"
+          />
+          <CopyClipboardDropdownMenuItem
+            textToCopy={String(row.agent_id)}
+            label="Copy Agent ID"
+          />
           <DropdownMenuSeparator />
           <DropdownMenuItem
             onSelect={() => {
@@ -56,17 +63,21 @@ export default function CellActions({ row }: { row: IColumns }) {
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
-      <LogsFormResolved
-        onSubmit={onSubmit}
-        row={{
-          ...row,
-          resolved_at: new Date(),
-          resolved_notes: "",
-          resolved_mark: true,
-        }}
-        open={isResolvedOpen}
-        onOpenChange={setIsResolvedOpen}
-      />
+
+      {/* Mount when open to prevent N+1 Query */}
+      {isResolvedOpen && (
+        <LogsFormResolved
+          onSubmit={onSubmit}
+          row={{
+            ...row,
+            resolved_at: new Date(),
+            resolved_notes: "",
+            resolved_mark: true,
+          }}
+          open={isResolvedOpen}
+          onOpenChange={setIsResolvedOpen}
+        />
+      )}
     </div>
   );
 }
