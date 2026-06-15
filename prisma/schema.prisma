@@ -20,33 +20,35 @@ model Agent {
   os          String?
   machine_id  String?   @map("machine_id")
   version     String?
-  status      String   @default("offline")
+  status      String    @default("offline")
   last_seen   DateTime?
+  user_id     String?
   created_at  DateTime  @default(now())
   updated_at  DateTime  @updatedAt
 
   tokens       ApiToken[]
   anomaly_logs AnomalyLog[]
+  user        User?     @relation(fields: [user_id], references: [id], onDelete: SetNull)
 
   @@map("agents")
 }
 
 model AnomalyLog {
-  id                    Int      @id @default(autoincrement())
+  id                    Int       @id @default(autoincrement())
   agent_id              String
   ip                    String
-  request_count         Int      @default(0)
-  error_count           Int      @default(0)
-  request_per_second    Float    @default(0)
-  unique_endpoint_ratio Float    @default(0)
-  risk_score            Float    @default(0)
-  risk_category         String   @default("LOW")
-  risk_reasons          Json     @default("[]")
-  resolved_mark         Boolean  @default(false)
+  request_count         Int       @default(0)
+  error_count           Int       @default(0)
+  request_per_second    Float     @default(0)
+  unique_endpoint_ratio Float     @default(0)
+  risk_score            Float     @default(0)
+  risk_category         String    @default("LOW")
+  risk_reasons          Json      @default("[]")
+  resolved_mark         Boolean   @default(false)
   resolved_at           DateTime?
   resolved_notes        String?
-  created_at            DateTime @default(now())
-  updated_at            DateTime @updatedAt
+  created_at            DateTime  @default(now())
+  updated_at            DateTime  @updatedAt
 
   agent Agent @relation(fields: [agent_id], references: [id], onDelete: Cascade)
 
@@ -60,24 +62,28 @@ model ApiToken {
   token      String    @unique
   is_active  Boolean   @default(true)
   last_used  DateTime?
+  user_id    String?
   created_at DateTime  @default(now())
   updated_at DateTime  @updatedAt
 
   agent Agent @relation(fields: [agent_id], references: [id], onDelete: Cascade)
+  user  User? @relation(fields: [user_id], references: [id], onDelete: SetNull)
 
   @@map("api_tokens")
 }
 
 model User {
-  id            String          @id @default(cuid())
+  id            String     @id @default(cuid())
   name          String
-  email         String?         @unique
-  emailVerified DateTime?       @map("email_verified")
+  email         String?    @unique
+  emailVerified DateTime?  @map("email_verified")
   image         String?
-  username      String          @unique
+  username      String     @unique
   password      String
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+  agents        Agent[]
+  tokens        ApiToken[]
+  createdAt     DateTime   @default(now()) @map("created_at")
+  updatedAt     DateTime   @updatedAt @map("updated_at")
 
   @@map("users")
 }
