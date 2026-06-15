@@ -7,6 +7,7 @@ import {
   ResponsiveDialog,
   ResponsiveDialogClose,
   ResponsiveDialogContent,
+  ResponsiveDialogDescription,
   ResponsiveDialogTitle,
 } from "./ui/responsive-dialog";
 
@@ -47,6 +48,9 @@ export default function Modal({
               <XIcon className="h-5 w-5" />
             </ResponsiveDialogClose>
           </div>
+          <ResponsiveDialogDescription className="sr-only">
+            Description
+          </ResponsiveDialogDescription>
 
           {/* SCROLL AREA */}
           <div className="flex-1 space-y-4 overflow-y-auto p-6">{children}</div>
