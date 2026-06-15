@@ -80,6 +80,7 @@ model Users {
   image         String?
   username      String     @unique
   password      String
+  role          String     @default("admin")
   agents        Agents[]
   tokens        ApiTokens[]
   createdAt     DateTime   @default(now()) @map("created_at")

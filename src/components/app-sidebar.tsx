@@ -59,7 +59,11 @@ export function AppSidebar({
         </SidebarMenu>
       </SidebarHeader>
       <SidebarContent>
-        <NavMain items={menu.navMain} />
+        <NavMain
+          items={menu.navMain.filter(
+            (item) => !item.roles || item.roles.includes(session.user.role),
+          )}
+        />
         <NavSecondary items={menu.navSecondary} className="mt-auto" />
       </SidebarContent>
       <SidebarFooter>

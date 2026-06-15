@@ -54,6 +54,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         token.username = user.username;
         token.name = user.name;
         token.image = user.image;
+        token.role = user.role;
       }
       return token;
     },
@@ -62,6 +63,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       session.user.username = token.username;
       session.user.name = token.name;
       session.user.image = token.image;
+      session.user.role = token.role;
       return session;
     },
   },
@@ -75,6 +77,7 @@ declare module "next-auth" {
     name: string;
     image: string | null;
     email: string | null;
+    role: string;
   }
   interface Session {
     user: User;
@@ -88,5 +91,6 @@ declare module "next-auth/jwt" {
     name: string;
     image: string | null;
     email: string | null;
+    role: string;
   }
 }

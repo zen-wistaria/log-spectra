@@ -20,6 +20,7 @@ export function NavMain({
     title: string;
     url: string;
     icon?: LucideIcon;
+    roles?: string[];
   }[];
 }) {
   const path = usePathname();
