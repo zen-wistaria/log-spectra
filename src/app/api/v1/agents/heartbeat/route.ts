@@ -32,7 +32,7 @@ async function authenticateRequest(request: Request): Promise<{
     return { valid: false, error: "Empty token" };
   }
 
-  const apiToken = await prisma.apiToken.findUnique({
+  const apiToken = await prisma.apiTokens.findUnique({
     where: { token },
     include: { agent: true },
   });
@@ -46,7 +46,7 @@ async function authenticateRequest(request: Request): Promise<{
   }
 
   // Update token last_used
-  await prisma.apiToken.update({
+  await prisma.apiTokens.update({
     where: { id: apiToken.id },
     data: { last_used: new Date() },
   });
@@ -84,7 +84,7 @@ export async function POST(request: Request) {
     const agentId = auth.agentId as string;
 
     // 4. Verify agent exists and machine_id matches
-    const agent = await prisma.agent.findUnique({
+    const agent = await prisma.agents.findUnique({
       where: { id: agentId },
     });
 
@@ -97,7 +97,7 @@ export async function POST(request: Request) {
 
     // First heartbeat — register machine_id
     if (!agent.machine_id) {
-      await prisma.agent.update({
+      await prisma.agents.update({
         where: { id: agentId },
         data: {
           machine_id: body.machine_id,
@@ -122,7 +122,7 @@ export async function POST(request: Request) {
       }
 
       // Update agent status and metadata
-      await prisma.agent.update({
+      await prisma.agents.update({
         where: { id: agentId },
         data: {
           status: "online",

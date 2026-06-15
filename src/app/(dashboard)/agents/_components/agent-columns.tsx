@@ -1,6 +1,6 @@
 "use client";
 
-import type { Agent } from "@prisma/client";
+import type { Agents } from "@prisma/client";
 import type { ColumnDef } from "@tanstack/react-table";
 import { CheckCircle, XCircle } from "lucide-react";
 import { DataTableColumnHeader } from "@/components/data-tables/data-table-column-header";
@@ -8,7 +8,7 @@ import { DateCell } from "@/components/data-tables/date-cell";
 import { Badge } from "@/components/ui/badge";
 import CellActions from "./agent-cell-actions";
 
-export type IColumns = Agent & {
+export type IColumns = Agents & {
   _count: {
     anomaly_logs: number;
   };

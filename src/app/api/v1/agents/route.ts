@@ -33,7 +33,7 @@ export async function POST(request: Request) {
     }
 
     // Create agent
-    const agent = await prisma.agent.create({
+    const agent = await prisma.agents.create({
       data: {
         name: body.name.trim(),
         description: body.description?.trim() || null,
@@ -42,7 +42,7 @@ export async function POST(request: Request) {
 
     // Auto-generate API token for this agent
     const tokenValue = generateToken();
-    await prisma.apiToken.create({
+    await prisma.apiTokens.create({
       data: {
         agent_id: agent.id,
         token: tokenValue,
@@ -87,7 +87,7 @@ export async function GET() {
     );
   }
   try {
-    const agents = await prisma.agent.findMany({
+    const agents = await prisma.agents.findMany({
       orderBy: { created_at: "desc" },
       include: {
         _count: {

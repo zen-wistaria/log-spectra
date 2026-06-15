@@ -11,7 +11,7 @@ datasource db {
   provider = "postgresql"
 }
 
-model Agent {
+model Agents {
   id          String    @id @default(cuid())
   name        String
   description String?
@@ -26,14 +26,14 @@ model Agent {
   created_at  DateTime  @default(now())
   updated_at  DateTime  @updatedAt
 
-  tokens       ApiToken[]
-  anomaly_logs AnomalyLog[]
-  user        User?     @relation(fields: [user_id], references: [id], onDelete: SetNull)
+  tokens       ApiTokens[]
+  anomaly_logs AnomalyLogs[]
+  user        Users?     @relation(fields: [user_id], references: [id], onDelete: SetNull)
 
   @@map("agents")
 }
 
-model AnomalyLog {
+model AnomalyLogs {
   id                    Int       @id @default(autoincrement())
   agent_id              String
   ip                    String
@@ -50,13 +50,13 @@ model AnomalyLog {
   created_at            DateTime  @default(now())
   updated_at            DateTime  @updatedAt
 
-  agent Agent @relation(fields: [agent_id], references: [id], onDelete: Cascade)
+  agent Agents @relation(fields: [agent_id], references: [id], onDelete: Cascade)
 
   @@unique([agent_id, ip])
   @@map("anomaly_logs")
 }
 
-model ApiToken {
+model ApiTokens {
   id         Int       @id @default(autoincrement())
   agent_id   String
   token      String    @unique
@@ -66,13 +66,13 @@ model ApiToken {
   created_at DateTime  @default(now())
   updated_at DateTime  @updatedAt
 
-  agent Agent @relation(fields: [agent_id], references: [id], onDelete: Cascade)
-  user  User? @relation(fields: [user_id], references: [id], onDelete: SetNull)
+  agent Agents @relation(fields: [agent_id], references: [id], onDelete: Cascade)
+  user  Users? @relation(fields: [user_id], references: [id], onDelete: SetNull)
 
   @@map("api_tokens")
 }
 
-model User {
+model Users {
   id            String     @id @default(cuid())
   name          String
   email         String?    @unique
@@ -80,8 +80,8 @@ model User {
   image         String?
   username      String     @unique
   password      String
-  agents        Agent[]
-  tokens        ApiToken[]
+  agents        Agents[]
+  tokens        ApiTokens[]
   createdAt     DateTime   @default(now()) @map("created_at")
   updatedAt     DateTime   @updatedAt @map("updated_at")
 

@@ -20,7 +20,7 @@ export async function POST(_request: Request, { params }: RouteParams) {
   try {
     const { id } = await params;
 
-    const agent = await prisma.agent.findUnique({ where: { id } });
+    const agent = await prisma.agents.findUnique({ where: { id } });
     if (!agent) {
       return NextResponse.json(
         { status: "error", message: "Agent not found" },
@@ -36,7 +36,7 @@ export async function POST(_request: Request, { params }: RouteParams) {
     }
 
     const tokenValue = generateToken();
-    const apiToken = await prisma.apiToken.create({
+    const apiToken = await prisma.apiTokens.create({
       data: {
         agent_id: agent.id,
         token: tokenValue,
@@ -74,7 +74,7 @@ export async function GET(_request: Request, { params }: RouteParams) {
   try {
     const { id } = await params;
 
-    const agent = await prisma.agent.findUnique({ where: { id } });
+    const agent = await prisma.agents.findUnique({ where: { id } });
     if (!agent) {
       return NextResponse.json(
         { status: "error", message: "Agent not found" },
@@ -82,7 +82,7 @@ export async function GET(_request: Request, { params }: RouteParams) {
       );
     }
 
-    const tokens = await prisma.apiToken.findMany({
+    const tokens = await prisma.apiTokens.findMany({
       where: { agent_id: id },
       select: {
         id: true,

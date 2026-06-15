@@ -12,7 +12,7 @@ export interface GetAgentsParams {
 // biome-ignore lint/complexity/noStaticOnlyClass: using for agent services
 export class AgentService {
   static async getAgents({ page, limit, search, sort }: GetAgentsParams) {
-    const orderBy: Prisma.AgentOrderByWithRelationInput[] = [];
+    const orderBy: Prisma.AgentsOrderByWithRelationInput[] = [];
     if (sort) {
       const fields = sort.split(",");
       fields.forEach((field) => {
@@ -31,7 +31,7 @@ export class AgentService {
         }
       });
     }
-    const where: Prisma.AgentWhereInput = {};
+    const where: Prisma.AgentsWhereInput = {};
     if (search) {
       where.OR = [
         { name: { contains: search, mode: "insensitive" } },
@@ -41,7 +41,7 @@ export class AgentService {
         { os: { contains: search, mode: "insensitive" } },
       ];
     }
-    return await prisma.agent.findMany({
+    return await prisma.agents.findMany({
       where,
       orderBy,
       skip: (page - 1) * limit,
@@ -57,13 +57,13 @@ export class AgentService {
   }
 
   static async createAgent(data: AgentCreate) {
-    return await prisma.agent.create({
+    return await prisma.agents.create({
       data,
     });
   }
 
   static async updateAgent(data: AgentUpdate) {
-    return await prisma.agent.update({
+    return await prisma.agents.update({
       where: {
         id: data.id,
       },
@@ -72,17 +72,17 @@ export class AgentService {
   }
 
   static async deleteAgent(id: string) {
-    return await prisma.agent.delete({
+    return await prisma.agents.delete({
       where: { id },
     });
   }
 
   static async total() {
-    return await prisma.agent.count();
+    return await prisma.agents.count();
   }
 
   static async getAgentById(id: string) {
-    return await prisma.agent.findUnique({
+    return await prisma.agents.findUnique({
       where: {
         id,
       },
@@ -98,7 +98,7 @@ export class AgentService {
   }
 
   static async getCountActiveAgents() {
-    return await prisma.agent.count({
+    return await prisma.agents.count({
       where: {
         status: "online",
       },
@@ -106,7 +106,7 @@ export class AgentService {
   }
 
   static async getCountInactiveAgents() {
-    return await prisma.agent.count({
+    return await prisma.agents.count({
       where: {
         status: "offline",
       },
@@ -114,7 +114,7 @@ export class AgentService {
   }
 
   static async getActiveAgents() {
-    return await prisma.agent.findMany({
+    return await prisma.agents.findMany({
       where: {
         status: "online",
       },
@@ -122,7 +122,7 @@ export class AgentService {
   }
 
   static async updateAgentStatus(id: string, status: string) {
-    return await prisma.agent.update({
+    return await prisma.agents.update({
       where: {
         id,
       },

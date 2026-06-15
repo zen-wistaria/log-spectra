@@ -1,6 +1,6 @@
 "use client";
 
-import type { Agent } from "@prisma/client";
+import type { Agents } from "@prisma/client";
 import { AlertTriangle, ShieldAlert, ShieldCheck } from "lucide-react";
 import { parseAsInteger, useQueryState } from "nuqs";
 import { useState } from "react";
@@ -61,7 +61,7 @@ export function LogsTable() {
     search: debounceAgent,
     sort: "",
   });
-  const agentSelect = useAsyncSelect<Agent>(agentId, agentQuery);
+  const agentSelect = useAsyncSelect<Agents>(agentId, agentQuery);
   function getRiskRowClass(category: string) {
     switch (category) {
       case "HIGH":

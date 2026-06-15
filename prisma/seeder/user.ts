@@ -5,7 +5,7 @@ const [username, password, name] = ["admin", "Admin321!", "Admin"];
 
 export const user = async () => {
   try {
-    await prisma.user.upsert({
+    await prisma.users.upsert({
       where: {
         username,
       },

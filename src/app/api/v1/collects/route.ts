@@ -43,7 +43,7 @@ async function authenticateRequest(request: Request): Promise<{
     return { valid: false, error: "Empty token" };
   }
 
-  const apiToken = await prisma.apiToken.findUnique({
+  const apiToken = await prisma.apiTokens.findUnique({
     where: { token },
     include: { agent: true },
   });
@@ -61,7 +61,7 @@ async function authenticateRequest(request: Request): Promise<{
   // }
 
   /* Update token last_used */
-  await prisma.apiToken.update({
+  await prisma.apiTokens.update({
     where: { id: apiToken.id },
     data: { last_used: new Date() },
   });
@@ -96,7 +96,7 @@ export async function POST(request: Request) {
     }
 
     /* Enforce: token must belong to the agent with this server_id */
-    const agent = await prisma.agent.findUnique({
+    const agent = await prisma.agents.findUnique({
       where: {
         id: auth.agentId,
       },
@@ -112,7 +112,7 @@ export async function POST(request: Request) {
     }
     if (!agent.machine_id) {
       /* registration */
-      await prisma.agent.update({
+      await prisma.agents.update({
         where: {
           id: auth.agentId,
         },
@@ -195,7 +195,7 @@ export async function POST(request: Request) {
           risk_reasons: riskReasons,
         };
 
-        await tx.anomalyLog.upsert({
+        await tx.anomalyLogs.upsert({
           where: {
             agent_id_ip: {
               agent_id: agentId,
@@ -220,7 +220,7 @@ export async function POST(request: Request) {
       // });
 
       /* Update agent metadata */
-      await tx.agent.update({
+      await tx.agents.update({
         where: { id: agentId },
         data: {
           status: "online",

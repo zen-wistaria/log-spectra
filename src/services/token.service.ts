@@ -20,7 +20,7 @@ export class TokenService {
     sort,
     agentId,
   }: GetTokenParams) {
-    const orderBy: Prisma.ApiTokenOrderByWithRelationInput[] = [];
+    const orderBy: Prisma.ApiTokensOrderByWithRelationInput[] = [];
     if (sort) {
       const fields = sort.split(",");
       fields.forEach((field) => {
@@ -32,7 +32,7 @@ export class TokenService {
         });
       });
     }
-    const where: Prisma.ApiTokenWhereInput[] = [];
+    const where: Prisma.ApiTokensWhereInput[] = [];
 
     if (agentId) {
       where.push({
@@ -49,7 +49,7 @@ export class TokenService {
         ],
       });
     }
-    return await prisma.apiToken.findMany({
+    return await prisma.apiTokens.findMany({
       where: {
         AND: where,
       },
@@ -69,7 +69,7 @@ export class TokenService {
       .randomBytes(length / 2)
       .toString("hex")
       .slice(0, length)}`;
-    return await prisma.apiToken.create({
+    return await prisma.apiTokens.create({
       data: {
         ...data,
         token: generatedToken,
@@ -78,7 +78,7 @@ export class TokenService {
   }
 
   static async updateToken(data: TokenUpdate) {
-    return await prisma.apiToken.update({
+    return await prisma.apiTokens.update({
       where: {
         id: data.id,
       },
@@ -87,7 +87,7 @@ export class TokenService {
   }
 
   static async revokeToken(id: number) {
-    return await prisma.apiToken.update({
+    return await prisma.apiTokens.update({
       where: { id },
       data: {
         is_active: false,
@@ -96,13 +96,13 @@ export class TokenService {
   }
 
   static async deleteToken(id: number) {
-    return await prisma.apiToken.delete({
+    return await prisma.apiTokens.delete({
       where: { id },
     });
   }
 
   static async total(agentId?: string) {
-    return await prisma.apiToken.count({
+    return await prisma.apiTokens.count({
       where: {
         agent_id: agentId,
       },

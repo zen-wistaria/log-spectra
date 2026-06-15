@@ -1,6 +1,6 @@
 "use client";
 
-import type { ApiToken } from "@prisma/client";
+import type { ApiTokens } from "@prisma/client";
 import type { ColumnDef } from "@tanstack/react-table";
 import { CheckCircle, XCircle } from "lucide-react";
 import { DataTableColumnHeader } from "@/components/data-tables/data-table-column-header";
@@ -8,7 +8,7 @@ import { DateCell } from "@/components/data-tables/date-cell";
 import { Badge } from "@/components/ui/badge";
 import CellActions from "./token-cell-actions";
 
-export type IColumns = ApiToken;
+export type IColumns = ApiTokens;
 
 export const getColumns = (): ColumnDef<IColumns>[] => [
   {

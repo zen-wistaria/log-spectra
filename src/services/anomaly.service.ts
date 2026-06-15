@@ -21,7 +21,7 @@ export class AnomalyService {
     markedAsResolved = false,
     agentId,
   }: GetAnomaliesParams) {
-    const orderBy: Prisma.AnomalyLogOrderByWithRelationInput[] = [];
+    const orderBy: Prisma.AnomalyLogsOrderByWithRelationInput[] = [];
     if (sort) {
       const fields = sort.split(",");
       fields.forEach((field) => {
@@ -53,7 +53,7 @@ export class AnomalyService {
         }
       });
     }
-    const where: Prisma.AnomalyLogWhereInput[] = [];
+    const where: Prisma.AnomalyLogsWhereInput[] = [];
     if (agentId) {
       where.push({
         agent_id: agentId,
@@ -77,7 +77,7 @@ export class AnomalyService {
         resolved_mark: false,
       });
     }
-    return await prisma.anomalyLog.findMany({
+    return await prisma.anomalyLogs.findMany({
       where: {
         AND: where,
       },
@@ -91,7 +91,7 @@ export class AnomalyService {
   }
 
   static async updateAnomalyResolved(data: AnomalyUpdate) {
-    return await prisma.anomalyLog.update({
+    return await prisma.anomalyLogs.update({
       where: {
         agent_id_ip: {
           agent_id: data.agent_id,
@@ -107,7 +107,7 @@ export class AnomalyService {
   }
 
   static async total(agentId?: string, markedAsResolved: boolean = false) {
-    const where: Prisma.AnomalyLogWhereInput = {};
+    const where: Prisma.AnomalyLogsWhereInput = {};
 
     if (agentId) {
       where.agent_id = agentId;
@@ -118,7 +118,7 @@ export class AnomalyService {
       where.resolved_mark = false;
     }
 
-    return await prisma.anomalyLog.count({
+    return await prisma.anomalyLogs.count({
       where,
     });
   }
@@ -132,7 +132,7 @@ export class AnomalyService {
     agentId?: string;
     markedAsResolved?: boolean;
   }) {
-    const where: Prisma.AnomalyLogWhereInput = {};
+    const where: Prisma.AnomalyLogsWhereInput = {};
     if (agentId) {
       where.AND = [
         {
@@ -149,14 +149,14 @@ export class AnomalyService {
       where.risk_category = riskCategory.toUpperCase();
       where.resolved_mark = markedAsResolved;
     }
-    return await prisma.anomalyLog.count({
+    return await prisma.anomalyLogs.count({
       where,
     });
   }
 
   static async getTop10SuspiciousIP() {
     // Try HIGH first, fallback to MEDIUM if none found
-    const highResults = await prisma.anomalyLog.findMany({
+    const highResults = await prisma.anomalyLogs.findMany({
       where: {
         risk_category: { equals: "HIGH", mode: "insensitive" },
         resolved_mark: false,
@@ -174,7 +174,7 @@ export class AnomalyService {
     });
     if (highResults.length > 0) return highResults;
 
-    return await prisma.anomalyLog.findMany({
+    return await prisma.anomalyLogs.findMany({
       where: {
         risk_category: { equals: "MEDIUM", mode: "insensitive" },
         resolved_mark: false,
@@ -194,7 +194,7 @@ export class AnomalyService {
 
   static async getDashboardStats() {
     const [agentStats, anomalyStats] = await Promise.all([
-      prisma.agent
+      prisma.agents
         .aggregate({
           _count: {
             _all: true,
@@ -202,7 +202,7 @@ export class AnomalyService {
           where: {},
         })
         .then(async (res) => {
-          const active = await prisma.agent.count({
+          const active = await prisma.agents.count({
             where: { status: "online" },
           });
 
@@ -212,7 +212,7 @@ export class AnomalyService {
           };
         }),
 
-      prisma.anomalyLog.groupBy({
+      prisma.anomalyLogs.groupBy({
         by: ["resolved_mark", "risk_category"],
         _count: {
           _all: true,
@@ -249,7 +249,7 @@ export class AnomalyService {
   }
 
   static async countHighriskIp() {
-    return await prisma.anomalyLog.count({
+    return await prisma.anomalyLogs.count({
       where: {
         risk_category: {
           in: ["high"],
@@ -260,7 +260,7 @@ export class AnomalyService {
   }
 
   static async latestLogsReport() {
-    return await prisma.anomalyLog.findMany({
+    return await prisma.anomalyLogs.findMany({
       take: 10,
       orderBy: {
         created_at: "desc",
@@ -272,7 +272,7 @@ export class AnomalyService {
   }
 
   static async getAgentFromAnomalyIps({ ip }: { ip: string }) {
-    return await prisma.anomalyLog.findMany({
+    return await prisma.anomalyLogs.findMany({
       where: {
         ip,
       },

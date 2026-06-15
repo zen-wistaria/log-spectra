@@ -19,7 +19,7 @@ export async function GET(_request: Request, { params }: RouteParams) {
   try {
     const { id } = await params;
 
-    const agent = await prisma.agent.findUnique({
+    const agent = await prisma.agents.findUnique({
       where: { id },
       include: {
         tokens: {
@@ -81,7 +81,7 @@ export async function PATCH(request: Request, { params }: RouteParams) {
     const { id } = await params;
     const body: UpdateAgentBody = await request.json();
 
-    const existing = await prisma.agent.findUnique({ where: { id } });
+    const existing = await prisma.agents.findUnique({ where: { id } });
     if (!existing) {
       return NextResponse.json(
         { status: "error", message: "Agent not found" },
@@ -89,7 +89,7 @@ export async function PATCH(request: Request, { params }: RouteParams) {
       );
     }
 
-    const agent = await prisma.agent.update({
+    const agent = await prisma.agents.update({
       where: { id },
       data: {
         ...(body.name !== undefined && { name: body.name.trim() }),
@@ -130,7 +130,7 @@ export async function DELETE(_request: Request, { params }: RouteParams) {
   try {
     const { id } = await params;
 
-    const existing = await prisma.agent.findUnique({ where: { id } });
+    const existing = await prisma.agents.findUnique({ where: { id } });
     if (!existing) {
       return NextResponse.json(
         { status: "error", message: "Agent not found" },
@@ -140,12 +140,12 @@ export async function DELETE(_request: Request, { params }: RouteParams) {
 
     await prisma.$transaction([
       // Deactivate all tokens
-      prisma.apiToken.updateMany({
+      prisma.apiTokens.updateMany({
         where: { agent_id: id },
         data: { is_active: false },
       }),
       // Soft delete agent
-      prisma.agent.update({
+      prisma.agents.update({
         where: { id },
         data: { status: "deleted" },
       }),

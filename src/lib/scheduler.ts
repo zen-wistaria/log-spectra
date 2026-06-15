@@ -52,7 +52,7 @@ export function checkAgentStatus() {
 
       // Single query: mark all online agents whose last_seen is older
       // than the cutoff (or null) as offline
-      const result = await prisma.agent.updateMany({
+      const result = await prisma.agents.updateMany({
         where: {
           status: "online",
           OR: [{ last_seen: { lt: cutoff } }, { last_seen: null }],

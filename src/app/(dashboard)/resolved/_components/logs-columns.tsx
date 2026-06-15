@@ -1,6 +1,6 @@
 "use client";
 
-import type { Agent, AnomalyLog } from "@prisma/client";
+import type { Agents, AnomalyLogs } from "@prisma/client";
 import type { ColumnDef } from "@tanstack/react-table";
 import { AlertTriangle, ShieldAlert, ShieldCheck } from "lucide-react";
 // import type { GroupedAnomalyItem } from "@/actions/anomalies";
@@ -9,8 +9,8 @@ import { Badge } from "@/components/ui/badge";
 import { formatDateTime } from "@/lib/utils";
 import CellActions from "./logs-cell-actions";
 
-export type IColumns = AnomalyLog & {
-  agent: Agent;
+export type IColumns = AnomalyLogs & {
+  agent: Agents;
 };
 
 export const getColumns = (): ColumnDef<IColumns>[] => [

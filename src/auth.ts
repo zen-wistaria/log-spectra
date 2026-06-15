@@ -21,7 +21,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         const { username, password } = validated.data;
 
         const prisma = (await import("./lib/prisma")).default;
-        const user = await prisma.user.findUnique({
+        const user = await prisma.users.findUnique({
           where: { username },
         });
 
