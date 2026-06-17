@@ -6,6 +6,7 @@ import {
   ShieldAlert,
   ShieldCheck,
 } from "lucide-react";
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -27,6 +28,7 @@ import {
 import { formatDateTime } from "@/lib/utils";
 
 interface Agent {
+  id: string;
   name: string;
   hostname: string | null;
   ip_address: string | null;
@@ -90,7 +92,6 @@ export function LatestAgentReports() {
         {loading ? (
           <div className="space-y-2">
             {Array.from({ length: 5 }).map((_, i) => (
-              // biome-ignore lint/suspicious/noArrayIndexKey: skeleton
               <Skeleton key={i} className="h-10 w-full" />
             ))}
           </div>
@@ -123,7 +124,12 @@ export function LatestAgentReports() {
                     className={getRiskRowClass(report.risk_category)}
                   >
                     <TableCell className="text-xs font-medium">
-                      {report.agent.name}
+                      <div className="text-xs font-mono flex flex-col">
+                        {report.agent.name}
+                        <span className="text-muted-foreground text-[10px]">
+                          {report.agent.id}
+                        </span>
+                      </div>
                     </TableCell>
                     <TableCell className="text-xs text-muted-foreground">
                       {report.agent.hostname ?? "—"}
@@ -132,7 +138,22 @@ export function LatestAgentReports() {
                       {report.agent.ip_address ?? "—"}
                     </TableCell>
                     <TableCell className="text-xs font-mono">
-                      {report.ip}
+                      <Link href={`/reports/ip/${report.ip}`}>
+                        <Badge
+                          className="hover:opacity-80 transition-opacity"
+                          variant={
+                            low
+                              ? "green-subtle"
+                              : medium
+                                ? "yellow-subtle"
+                                : high
+                                  ? "red-subtle"
+                                  : "gray-subtle"
+                          }
+                        >
+                          <div className="font-mono">{report.ip}</div>
+                        </Badge>
+                      </Link>
                     </TableCell>
                     <TableCell className="text-xs text-right">
                       {report.request_count.toLocaleString()}

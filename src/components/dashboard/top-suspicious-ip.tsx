@@ -1,6 +1,7 @@
 "use client";
 
 import { AlertTriangle } from "lucide-react";
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import type { TooltipProps } from "recharts";
 import {
@@ -235,25 +236,27 @@ export function TopSuspiciousIp() {
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
         {topIps.slice(0, 5).map((entry, idx) => (
           <Card key={idx} className="relative overflow-hidden">
-            <CardContent className="p-4">
-              <p className="mb-1 font-mono text-sm font-semibold truncate">
-                {entry.ip}
-              </p>
-              <div className="flex items-center justify-between gap-1">
-                <span className="text-xs text-muted-foreground">
-                  {entry.request_count.toLocaleString()} reqs
-                </span>
-                <Badge
-                  variant="secondary"
-                  className={getRiskBadgeClass(entry.risk_category)}
-                >
-                  {entry.risk_score.toFixed(1)}%
-                </Badge>
-              </div>
-              <p className="mt-1 text-[11px] text-muted-foreground">
-                {formatDate(entry.updated_at)}
-              </p>
-            </CardContent>
+            <Link href={`/reports/ip/${entry.ip}`}>
+              <CardContent className="p-4">
+                <p className="mb-1 font-mono text-sm font-semibold truncate">
+                  {entry.ip}
+                </p>
+                <div className="flex items-center justify-between gap-1">
+                  <span className="text-xs text-muted-foreground">
+                    {entry.request_count.toLocaleString()} reqs
+                  </span>
+                  <Badge
+                    variant="secondary"
+                    className={getRiskBadgeClass(entry.risk_category)}
+                  >
+                    {entry.risk_score.toFixed(1)}%
+                  </Badge>
+                </div>
+                <p className="mt-1 text-[11px] text-muted-foreground">
+                  {formatDate(entry.updated_at)}
+                </p>
+              </CardContent>
+            </Link>
           </Card>
         ))}
       </div>
