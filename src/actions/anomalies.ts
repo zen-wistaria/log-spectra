@@ -38,7 +38,7 @@ import {
 export async function getAnomlies(params: GetAnomaliesParams) {
   try {
     const data = await AnomalyService.getAnomalies(params);
-    const total = await AnomalyService.total(params.agentId);
+    const total = await AnomalyService.total(params.agentId, false, params.ip);
     const pages = Math.ceil(total / params.limit);
     const highCount = await AnomalyService.countRiskCategory({
       riskCategory: "high",
@@ -73,7 +73,7 @@ export async function getResolvedAnomlies(params: GetAnomaliesParams) {
       markedAsResolved: true,
     });
 
-    const total = await AnomalyService.total(params.agentId, true);
+    const total = await AnomalyService.total(params.agentId, true, params.ip);
     const pages = Math.ceil(total / params.limit);
 
     const highCount = await AnomalyService.countRiskCategory({

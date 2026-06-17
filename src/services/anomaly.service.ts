@@ -8,6 +8,7 @@ export interface GetAnomaliesParams {
   search: string;
   sort: string;
   agentId?: string;
+  ip?: string;
   markedAsResolved?: boolean;
 }
 
@@ -20,6 +21,7 @@ export class AnomalyService {
     sort,
     markedAsResolved = false,
     agentId,
+    ip,
   }: GetAnomaliesParams) {
     const orderBy: Prisma.AnomalyLogsOrderByWithRelationInput[] = [];
     if (sort) {
@@ -57,6 +59,11 @@ export class AnomalyService {
     if (agentId) {
       where.push({
         agent_id: agentId,
+      });
+    }
+    if (ip) {
+      where.push({
+        ip,
       });
     }
     if (search) {
@@ -106,11 +113,18 @@ export class AnomalyService {
     });
   }
 
-  static async total(agentId?: string, markedAsResolved: boolean = false) {
+  static async total(
+    agentId?: string,
+    markedAsResolved: boolean = false,
+    ip?: string,
+  ) {
     const where: Prisma.AnomalyLogsWhereInput = {};
 
     if (agentId) {
       where.agent_id = agentId;
+    }
+    if (ip) {
+      where.ip = ip;
     }
     if (markedAsResolved) {
       where.resolved_mark = true;

@@ -20,7 +20,7 @@ import { useAnomalies } from "@/query/anomaly.query";
 import type { GetAnomaliesParams } from "@/services/anomaly.service";
 import { getColumns } from "./logs-columns";
 
-export function LogsTable() {
+export function LogsTable({ ip }: { ip?: string } = {}) {
   const columns = getColumns();
   // Params
   const [page, setPage] = useQueryState("page", parseAsInteger.withDefault(1));
@@ -49,6 +49,7 @@ export function LogsTable() {
     search,
     sort,
     agentId,
+    ip,
   };
   const { data, isPending } = useAnomalies(tableParams);
 
