@@ -4,7 +4,6 @@ import prisma from "@/lib/prisma";
 // ── Types ───────────────────────────────────────────────────
 
 interface HeartbeatPayload {
-  server_id: string;
   machine_id: string;
   version: string;
   os: string;

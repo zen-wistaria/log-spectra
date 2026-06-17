@@ -20,7 +20,6 @@ interface AnalysisPayload {
   os: string;
   hostname: string;
   ip_address?: string;
-  server_id: string;
   timestamp: string;
   results: AnalysisResult[];
 }
@@ -87,14 +86,6 @@ export async function POST(request: Request) {
 
     const body: AnalysisPayload = await request.json();
 
-    /* Validate payload */
-    if (!body.server_id || typeof body.server_id !== "string") {
-      return NextResponse.json(
-        { status: "error", message: "Missing or invalid server_id" },
-        { status: 400 },
-      );
-    }
-
     /* Enforce: token must belong to the agent with this server_id */
     const agent = await prisma.agents.findUnique({
       where: {
@@ -129,7 +120,7 @@ export async function POST(request: Request) {
         return NextResponse.json(
           {
             status: "error",
-            message: "Token is not authorized for this server_id",
+            message: `Token is not authorized for this server: ${body.machine_id}`,
           },
           { status: 403 },
         );

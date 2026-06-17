@@ -30,7 +30,7 @@ def setup_logging(level: str) -> None:
     )
 
 
-def build_payload(server_id: str, result_df, max_ips: int, sys_info: dict) -> dict:
+def build_payload(result_df, max_ips: int, sys_info: dict) -> dict:
     """Build the JSON payload to send to the main server.
 
     Results are sorted by risk_score descending (HIGH → LOW) and
@@ -61,7 +61,6 @@ def build_payload(server_id: str, result_df, max_ips: int, sys_info: dict) -> di
         })
 
     return {
-        "server_id": server_id,
         "machine_id": sys_info["machine_id"],
         "version": sys_info["version"],
         "os": sys_info["os"],
@@ -139,7 +138,6 @@ def send_to_server(
 
 def send_heartbeat(
     url: str,
-    server_id: str,
     sys_info: dict,
     buffer_size: int,
     auth_token: str = "",
@@ -151,7 +149,6 @@ def send_heartbeat(
     Runs on a separate thread, independent of the analysis cycle.
     """
     payload = {
-        "server_id": server_id,
         "machine_id": sys_info["machine_id"],
         "version": sys_info["version"],
         "os": sys_info["os"],
@@ -219,7 +216,6 @@ def _heartbeat_loop(
             logger.info("Sending heartbeat (buffer_size=%d)...", buffer_size)
             send_heartbeat(
                 heartbeat_url,
-                config["server_id"],
                 sys_info,
                 buffer_size,
                 auth_token=config["auth_token"],
@@ -314,7 +310,6 @@ def main():
                 if result is not None and not result.empty:
                     # Build and send payload (sorted HIGH → LOW, top N IPs)
                     payload = build_payload(
-                        config["server_id"],
                         result,
                         max_ips=config["max_ips_per_report"],
                         sys_info=sys_info,

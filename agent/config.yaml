@@ -19,10 +19,6 @@ heartbeat_endpoint: "/api/v1/agents/heartbeat"
 # How often the agent sends a heartbeat to indicate it is online.
 heartbeat_interval: 300
 
-# Unique identifier for this server, fill this with agent id from sistem collector.
-# (don't change after run)
-server_id: "your-agent-id"
-
 # Bearer token for API authentication
 # Generate this from the main server and paste here
 auth_token: "your-secret-token-here"
