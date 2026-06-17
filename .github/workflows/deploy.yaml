@@ -1,0 +1,22 @@
+name: Deployment to Server
+
+on:
+  workflow_dispatch:
+
+jobs:
+  update-image-in-production:
+    runs-on: ubuntu-latest
+    steps:
+      - name: SSH Remote Commands
+        uses: appleboy/ssh-action@v1.2.2
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USERNAME }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: ${{ secrets.SSH_PORT }}
+          passphrase: ${{ secrets.SSH_PASSPHRASE }}
+          script: |
+            cd ${{ vars.COMPOSE_DIR }}
+            docker compose pull
+            docker compose up -d
+            exit
