@@ -6,12 +6,12 @@
 
 set -e
 
-AGENT_DIR="/opt/log-anomaly-agent"
-SERVICE_NAME="log-anomaly-agent"
+AGENT_DIR="/opt/log-spectra-agent"
+SERVICE_NAME="log-spectra-agent"
 SERVICE_FILE="/etc/systemd/system/${SERVICE_NAME}.service"
 
 echo "============================================"
-echo " Log Anomaly Detection Agent Uninstaller"
+echo " Log Spectra Agent Uninstaller"
 echo "============================================"
 echo ""
 
@@ -59,5 +59,5 @@ fi
 echo ""
 echo "============================================"
 echo " Uninstallation complete!"
-echo " The log-anomaly-agent has been fully removed."
+echo " The log-spectra-agent has been fully removed."
 echo "============================================"

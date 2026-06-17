@@ -6,13 +6,13 @@
 
 set -e
 
-AGENT_DIR="/opt/log-anomaly-agent"
+AGENT_DIR="/opt/log-spectra-agent"
 VENV_DIR="$AGENT_DIR/venv"
-SERVICE_NAME="log-anomaly-agent"
+SERVICE_NAME="log-spectra-agent"
 CURRENT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
 echo "============================================"
-echo " Log Anomaly Detection Agent Installer"
+echo " Log Spectra Agent Installer"
 echo "============================================"
 echo ""
 
