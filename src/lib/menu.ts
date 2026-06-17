@@ -27,7 +27,7 @@ export const menu = {
       title: "Executive Dashboard",
       url: "/executive",
       icon: LayoutGrid,
-      roles: ["admin", "viewer"],
+      roles: ["none"],
     },
     {
       title: "Agent",

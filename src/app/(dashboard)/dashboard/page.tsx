@@ -20,6 +20,12 @@ export default async function DashboardPage() {
   return (
     <div className="flex flex-col gap-4 py-4 md:gap-6 md:py-6 px-4 lg:px-6">
       <div className="space-y-8">
+        <div>
+          <h2 className="text-2xl font-bold tracking-tight">Dashboard</h2>
+          <p className="text-muted-foreground">
+            Overview of reporting statistics.
+          </p>
+        </div>
         {/* Summary cards */}
         <div className="grid gap-4 grid-cols-2 lg:grid-cols-3">
           <SummaryCard
