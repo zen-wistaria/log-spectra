@@ -101,10 +101,10 @@ COPY --from=prisma /app/node_modules ./node_modules
 COPY --from=builder /app/prisma.config.ts /app/
 
 # Optional: non-root user
-RUN groupadd --gid 1001 nodejs && \
-    useradd --uid 1001 --gid nodejs --create-home nextjs
-RUN chown -R nextjs:nodejs ./   
-USER nextjs
+RUN groupadd --gid 1001 logspectra && \
+    useradd --uid 1001 --gid logspectra --create-home logspectra
+RUN chown -R logspectra:logspectra ./   
+USER logspectra
 
 EXPOSE 3000
 CMD ["bash", "scripts/run.sh"]
