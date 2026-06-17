@@ -29,14 +29,16 @@ export default function Providers({ children }: PropsWithChildren) {
           <NuqsAdapter>
             <TooltipProvider>{children}</TooltipProvider>
           </NuqsAdapter>
-          <TanStackDevtools
-            plugins={[
-              {
-                name: "TanStack Query",
-                render: <ReactQueryDevtoolsPanel />,
-              },
-            ]}
-          />
+          {process.env.NODE_ENV === "development" && (
+            <TanStackDevtools
+              plugins={[
+                {
+                  name: "TanStack Query",
+                  render: <ReactQueryDevtoolsPanel />,
+                },
+              ]}
+            />
+          )}
         </QueryClientProvider>
       </TooltipProvider>
     </ThemeProvider>
