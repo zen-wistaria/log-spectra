@@ -17,6 +17,7 @@ import {
 import prisma from "@/lib/prisma";
 import { getRuntimeConfig } from "@/lib/runtime-config";
 import { IpActionButtons } from "./_components/ip-actions";
+import { ThreadResolveButton } from "./_components/thread-resolve-button";
 
 export async function generateMetadata({
   params,
@@ -153,13 +154,17 @@ export default async function IpDetailsPage({
             const high = log.risk_category.toLowerCase() === "high";
 
             return (
-              <Card
-                key={log.id}
-                className={log.resolved_mark ? "opacity-70" : ""}
-              >
+              <Card key={log.id}>
                 <CardHeader className="pb-2">
-                  <CardTitle className="text-lg flex justify-between items-center">
-                    Agent: {log.agent.name}
+                  <CardTitle className="text-lg flex justify-between items-start gap-2">
+                    <span>Agent: {log.agent.name}</span>
+                    <ThreadResolveButton
+                      ip={decodedIp}
+                      agentId={log.agent_id}
+                      agentName={log.agent.name}
+                      resolvedMark={log.resolved_mark}
+                      resolvedNotes={log.resolved_notes}
+                    />
                   </CardTitle>
                   <CardDescription className="flex items-center gap-2 mt-1">
                     Risk Category:
@@ -180,31 +185,33 @@ export default async function IpDetailsPage({
                 </CardHeader>
                 <CardContent className="space-y-3">
                   <div className="text-sm">
-                    <span className="font-semibold">Risk Score:</span>{" "}
+                    <span className="font-semibold mr-1">Risk Score:</span>
                     {log.risk_score}%
                   </div>
                   <div className="text-sm flex gap-4">
                     <div>
-                      <span className="font-semibold">Requests:</span>{" "}
+                      <span className="font-semibold mr-1">Requests:</span>
                       {log.request_count}
                     </div>
                     <div>
-                      <span className="font-semibold">Errors:</span>{" "}
+                      <span className="font-semibold mr-1">Errors:</span>
                       {log.error_count}
                     </div>
                   </div>
                   <div className="text-sm flex gap-4">
                     <div>
-                      <span className="font-semibold">Req/sec:</span>{" "}
+                      <span className="font-semibold mr-1">Req/sec:</span>
                       {log.request_per_second}
                     </div>
                     <div>
-                      <span className="font-semibold">Endpoint Ratio:</span>{" "}
+                      <span className="font-semibold mr-1">
+                        Endpoint Ratio:
+                      </span>
                       {log.unique_endpoint_ratio}
                     </div>
                   </div>
                   <div className="text-sm">
-                    <span className="font-semibold">Status:</span>{" "}
+                    <span className="font-semibold mr-1">Status:</span>
                     {log.resolved_mark ? (
                       <span className="text-green-600 font-medium">
                         Resolved
@@ -216,7 +223,7 @@ export default async function IpDetailsPage({
                     )}
                   </div>
                   <div className="text-sm">
-                    <span className="font-semibold">Reasons:</span>{" "}
+                    <span className="font-semibold mr-1">Reasons:</span>
                     <span className="text-muted-foreground">
                       {Array.isArray(log.risk_reasons)
                         ? log.risk_reasons.join(", ")

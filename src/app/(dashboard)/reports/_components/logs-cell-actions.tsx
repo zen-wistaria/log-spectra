@@ -1,7 +1,7 @@
-import { MoreHorizontal, ShieldCheck, Trash } from "lucide-react";
+import { Eye, MoreHorizontal, ShieldCheck } from "lucide-react";
+import { useRouter } from "nextjs-toploader/app";
 import { useState } from "react";
 import { CopyClipboardDropdownMenuItem } from "@/components/copy-clipboard-dropdown-menu-item";
-
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -23,6 +23,7 @@ export default function CellActions({ row }: { row: IColumns }) {
   const onSubmit = async (values: AnomalyUpdate) => {
     updateAnomalyResolved(values);
   };
+  const router = useRouter();
 
   return (
     <div>
@@ -50,6 +51,15 @@ export default function CellActions({ row }: { row: IColumns }) {
             label="Copy Agent ID"
           />
           <DropdownMenuSeparator />
+          <DropdownMenuItem
+            onSelect={() => {
+              router.push(`/reports/ip/${row.ip}`);
+            }}
+            variant="default"
+          >
+            <Eye className="size-4" />
+            Details IP
+          </DropdownMenuItem>
           <DropdownMenuItem
             onSelect={() => {
               setIsResolvedOpen(true);

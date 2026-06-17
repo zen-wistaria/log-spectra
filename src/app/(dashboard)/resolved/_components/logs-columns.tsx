@@ -3,6 +3,7 @@
 import type { Agents, AnomalyLogs } from "@prisma/client";
 import type { ColumnDef } from "@tanstack/react-table";
 import { AlertTriangle, ShieldAlert, ShieldCheck } from "lucide-react";
+import Link from "next/link";
 // import type { GroupedAnomalyItem } from "@/actions/anomalies";
 import { DataTableColumnHeader } from "@/components/data-tables/data-table-column-header";
 import { Badge } from "@/components/ui/badge";
@@ -53,19 +54,22 @@ export const getColumns = (): ColumnDef<IColumns>[] => [
       const medium = row.original.risk_category.toLowerCase() === "medium";
       const high = row.original.risk_category.toLowerCase() === "high";
       return (
-        <Badge
-          variant={
-            low
-              ? "green-subtle"
-              : medium
-                ? "yellow-subtle"
-                : high
-                  ? "red-subtle"
-                  : "gray-subtle"
-          }
-        >
-          <div className="font-mono">{row.original.ip}</div>
-        </Badge>
+        <Link href={`/reports/ip/${row.original.ip}`}>
+          <Badge
+            className="hover:opacity-80 transition-opacity"
+            variant={
+              low
+                ? "green-subtle"
+                : medium
+                  ? "yellow-subtle"
+                  : high
+                    ? "red-subtle"
+                    : "gray-subtle"
+            }
+          >
+            <div className="font-mono">{row.original.ip}</div>
+          </Badge>
+        </Link>
       );
     },
     enableHiding: false,
