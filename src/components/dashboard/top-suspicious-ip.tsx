@@ -2,15 +2,21 @@
 
 import { AlertTriangle } from "lucide-react";
 import { useEffect, useState } from "react";
+import type { TooltipProps } from "recharts";
 import {
   Bar,
   BarChart,
+  CartesianGrid,
   Cell,
   ResponsiveContainer,
   Tooltip,
   XAxis,
   YAxis,
 } from "recharts";
+import type {
+  NameType,
+  ValueType,
+} from "recharts/types/component/DefaultTooltipContent";
 import { Badge } from "@/components/ui/badge";
 import {
   Card,
@@ -42,6 +48,53 @@ function getBarColor(score: number): string {
   if (score >= 70) return "hsl(0, 84%, 60%)";
   if (score >= 30) return "hsl(45, 93%, 47%)";
   return "hsl(142, 71%, 45%)";
+}
+
+function getRiskLabel(score: number): string {
+  if (score >= 70) return "HIGH";
+  if (score >= 30) return "MEDIUM";
+  return "LOW";
+}
+
+function CustomBarTooltip({
+  active,
+  payload,
+}: TooltipProps<ValueType, NameType>) {
+  if (!active || !payload?.length) return null;
+
+  const data = payload[0]?.payload;
+  const score = data?.score ?? 0;
+  const riskLabel = getRiskLabel(score);
+  const barColor = getBarColor(score);
+
+  return (
+    <div className="rounded-lg border border-border/50 bg-popover px-3 py-2.5 text-popover-foreground shadow-xl">
+      <p className="mb-1.5 text-sm font-semibold">{data?.full_ip}</p>
+      <div className="flex items-center gap-2">
+        <span
+          className="inline-block size-2.5 rounded-sm"
+          style={{ backgroundColor: barColor }}
+        />
+        <span className="text-xs text-muted-foreground">Risk Score</span>
+        <span className="ml-auto font-mono text-xs font-medium tabular-nums">
+          {Number(score).toFixed(1)}%
+        </span>
+      </div>
+      <div className="mt-1 flex items-center gap-2">
+        <span
+          className="inline-block size-2.5 rounded-sm"
+          style={{ backgroundColor: "transparent" }}
+        />
+        <span className="text-xs text-muted-foreground">Category</span>
+        <span
+          className="ml-auto text-xs font-semibold"
+          style={{ color: barColor }}
+        >
+          {riskLabel}
+        </span>
+      </div>
+    </div>
+  );
 }
 
 export function TopSuspiciousIp() {
@@ -85,7 +138,6 @@ export function TopSuspiciousIp() {
         </Card>
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
           {Array.from({ length: 5 }).map((_, i) => (
-            // biome-ignore lint/suspicious/noArrayIndexKey: skeleton
             <Card key={i}>
               <CardContent className="p-4 space-y-2">
                 <Skeleton className="h-4 w-32" />
@@ -139,40 +191,36 @@ export function TopSuspiciousIp() {
               <BarChart
                 data={chartData}
                 layout="vertical"
-                margin={{ left: 10, right: 20 }}
+                margin={{ left: 10, right: 20, top: 5, bottom: 5 }}
               >
+                <CartesianGrid
+                  horizontal={false}
+                  strokeDasharray="3 3"
+                  className="stroke-border/40"
+                />
                 <XAxis
                   type="number"
                   domain={[0, 100]}
-                  tick={{ fontSize: 12 }}
+                  tickLine={false}
+                  axisLine={false}
+                  tickMargin={8}
+                  className="text-xs fill-muted-foreground"
                   tickFormatter={(v) => `${v}%`}
                 />
                 <YAxis
                   type="category"
                   dataKey="ip"
                   width={130}
-                  tick={{ fontSize: 11 }}
+                  tickLine={false}
+                  axisLine={false}
+                  tickMargin={8}
+                  className="text-xs fill-muted-foreground"
                 />
                 <Tooltip
-                  labelClassName="text-black"
-                  contentStyle={{
-                    background: "hsl(var(--popover))",
-                    border: "1px solid hsl(var(--border))",
-                    borderRadius: "8px",
-                    fontSize: "13px",
-                  }}
-                  formatter={
-                    // biome-ignore lint/suspicious/noExplicitAny: recharts type
-                    (value: any) => [
-                      `${Number(value).toFixed(1)}%`,
-                      "Risk Score",
-                    ]
-                  }
-                  labelFormatter={(_, payload) =>
-                    payload?.[0]?.payload?.full_ip || ""
-                  }
+                  cursor={{ fill: "var(--color-muted)", opacity: 0.5 }}
+                  content={<CustomBarTooltip />}
                 />
-                <Bar dataKey="score" radius={[0, 4, 4, 0]} barSize={18}>
+                <Bar dataKey="score" radius={[0, 6, 6, 0]} barSize={20}>
                   {chartData.map((entry) => (
                     <Cell key={entry.full_ip} fill={getBarColor(entry.score)} />
                   ))}
@@ -186,7 +234,6 @@ export function TopSuspiciousIp() {
       {/* Cards grid — top 5 */}
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
         {topIps.slice(0, 5).map((entry, idx) => (
-          // biome-ignore lint/suspicious/noArrayIndexKey: idx is safe here
           <Card key={idx} className="relative overflow-hidden">
             <CardContent className="p-4">
               <p className="mb-1 font-mono text-sm font-semibold truncate">
