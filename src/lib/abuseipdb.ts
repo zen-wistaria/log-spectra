@@ -30,7 +30,7 @@ export interface AbuseIpDbResult {
 
 // ─── AbuseIPDB category mapping ─────────────────────────────
 
-const ABUSE_CATEGORIES: Record<number, string> = {
+export const ABUSE_CATEGORIES: Record<number, string> = {
   1: "DNS Compromise",
   2: "DNS Poisoning",
   3: "Fraud Orders",

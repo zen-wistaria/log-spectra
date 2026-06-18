@@ -1,5 +1,9 @@
-import { useQuery } from "@tanstack/react-query";
-import { checkAbuseIpDb } from "@/actions/ip-intelligence";
+import { useMutation, useQuery } from "@tanstack/react-query";
+import {
+  checkAbuseIpDb,
+  reportAbuseIpDbAction,
+} from "@/actions/ip-intelligence";
+import type { ReportAbuseIpDbParams } from "@/services/ip-intelligence.service";
 
 export const useAbuseIpDbCheck = (ip: string, enabled: boolean) => {
   return useQuery({
@@ -8,5 +12,12 @@ export const useAbuseIpDbCheck = (ip: string, enabled: boolean) => {
     enabled: !!ip && enabled,
     staleTime: 1000 * 60 * 60, // 1 hour — AbuseIPDB data doesn't change frequently
     retry: 1,
+  });
+};
+
+export const useReportAbuseIpDb = () => {
+  return useMutation({
+    mutationFn: (params: ReportAbuseIpDbParams) =>
+      reportAbuseIpDbAction(params),
   });
 };

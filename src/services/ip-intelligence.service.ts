@@ -117,3 +117,59 @@ export async function lookupAbuseIpDb(
     return null;
   }
 }
+
+export interface ReportAbuseIpDbParams {
+  ip: string;
+  categories: string; // comma separated category IDs
+  comment?: string;
+  timestamp?: string; // ISO 8601
+}
+
+export async function reportAbuseIpDb(
+  params: ReportAbuseIpDbParams,
+): Promise<{ success: boolean; data?: unknown; error?: string }> {
+  const apiKey = process.env.ABUSEIPDB_API_KEY;
+  if (!apiKey) {
+    return { success: false, error: "ABUSEIPDB_API_KEY not configured" };
+  }
+
+  try {
+    const searchParams = new URLSearchParams();
+    searchParams.append("ip", params.ip);
+    searchParams.append("categories", params.categories);
+    if (params.comment) searchParams.append("comment", params.comment);
+    if (params.timestamp) searchParams.append("timestamp", params.timestamp);
+
+    const res = await fetch("https://api.abuseipdb.com/api/v2/report", {
+      method: "POST",
+      headers: {
+        Key: apiKey,
+        Accept: "application/json",
+        "Content-Type": "application/x-www-form-urlencoded",
+      },
+      body: searchParams.toString(),
+    });
+
+    const json = await res.json();
+
+    if (!res.ok) {
+      // Handle limit error or other API errors
+      if (json.errors && json.errors.length > 0) {
+        return {
+          success: false,
+          error:
+            json.errors[0].detail || json.errors[0].title || "Unknown error",
+        };
+      }
+      return { success: false, error: `API error: ${res.statusText}` };
+    }
+
+    return { success: true, data: json.data };
+  } catch (e) {
+    console.error("AbuseIPDB report error:", e);
+    return {
+      success: false,
+      error: e instanceof Error ? e.message : "Unknown error",
+    };
+  }
+}
