@@ -1,6 +1,7 @@
 import {
   ArrowLeft,
   Building,
+  Clock,
   Database,
   Globe,
   MapPin,
@@ -217,90 +218,190 @@ export default async function IpDetailsPage({
             const high = log.risk_category.toLowerCase() === "high";
 
             return (
-              <Card key={log.id}>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-lg flex justify-between items-start gap-2">
-                    <span>Agent: {log.agent.name}</span>
-                    <ThreadResolveButton
-                      ip={decodedIp}
-                      agentId={log.agent_id}
-                      agentName={log.agent.name}
-                      resolvedMark={log.resolved_mark}
-                      resolvedNotes={log.resolved_notes}
-                    />
-                  </CardTitle>
-                  <CardDescription className="flex items-center gap-2 mt-1">
-                    Risk Category:
-                    <Badge
-                      variant={
-                        low
-                          ? "green-subtle"
-                          : medium
-                            ? "yellow-subtle"
-                            : high
-                              ? "red-subtle"
-                              : "gray-subtle"
-                      }
-                    >
-                      {log.risk_category}
-                    </Badge>
-                  </CardDescription>
+              <Card key={log.id} className="flex flex-col h-full">
+                <CardHeader className="pb-4 border-b">
+                  <div className="flex justify-between items-start gap-4">
+                    <div className="space-y-1 overflow-hidden">
+                      <CardTitle className="text-lg flex items-center gap-2 truncate">
+                        <Database className="size-4 text-muted-foreground shrink-0" />
+                        <span className="truncate" title={log.agent.name}>
+                          {log.agent.name}
+                        </span>
+                      </CardTitle>
+                      <CardDescription className="space-y-1.5 mt-2">
+                        <div className="flex flex-col gap-1 text-xs">
+                          <div className="flex items-start gap-2">
+                            <span className="font-semibold w-16 shrink-0">
+                              ID:
+                            </span>
+                            <span className="font-mono text-muted-foreground break-all">
+                              {log.agent.id}
+                            </span>
+                          </div>
+                          <div className="flex items-start gap-2">
+                            <span className="font-semibold w-16 shrink-0">
+                              Host:
+                            </span>
+                            <span
+                              className="text-muted-foreground truncate"
+                              title={log.agent.hostname || "N/A"}
+                            >
+                              {log.agent.hostname || "N/A"}
+                            </span>
+                          </div>
+                          <div className="flex items-start gap-2">
+                            <span className="font-semibold w-16 shrink-0">
+                              Desc:
+                            </span>
+                            <span
+                              className="text-muted-foreground line-clamp-2 break-all"
+                              title={log.agent.description || "No description"}
+                            >
+                              {log.agent.description || "No description"}
+                            </span>
+                          </div>
+                        </div>
+                      </CardDescription>
+                    </div>
+                    <div className="shrink-0">
+                      <ThreadResolveButton
+                        ip={decodedIp}
+                        agentId={log.agent_id}
+                        agentName={log.agent.name}
+                        resolvedMark={log.resolved_mark}
+                        resolvedNotes={log.resolved_notes}
+                      />
+                    </div>
+                  </div>
                 </CardHeader>
-                <CardContent className="space-y-3">
-                  <div className="text-sm">
-                    <span className="font-semibold mr-1">Risk Score:</span>
-                    {log.risk_score}%
-                  </div>
-                  <div className="text-sm flex gap-4">
-                    <div>
-                      <span className="font-semibold mr-1">Requests:</span>
-                      {log.request_count}
-                    </div>
-                    <div>
-                      <span className="font-semibold mr-1">Errors:</span>
-                      {log.error_count}
-                    </div>
-                  </div>
-                  <div className="text-sm flex gap-4">
-                    <div>
-                      <span className="font-semibold mr-1">Req/sec:</span>
-                      {log.request_per_second}
-                    </div>
-                    <div>
-                      <span className="font-semibold mr-1">
-                        Endpoint Ratio:
-                      </span>
-                      {log.unique_endpoint_ratio}
-                    </div>
-                  </div>
-                  <div className="text-sm">
-                    <span className="font-semibold mr-1">Status:</span>
-                    {log.resolved_mark ? (
-                      <span className="text-green-600 font-medium">
-                        Resolved
-                      </span>
-                    ) : (
-                      <span className="text-yellow-600 font-medium">
-                        Unresolved
-                      </span>
-                    )}
-                  </div>
-                  <div className="text-sm">
-                    <span className="font-semibold mr-1">Reasons:</span>
-                    <span className="text-muted-foreground">
-                      {Array.isArray(log.risk_reasons)
-                        ? log.risk_reasons.join(", ")
-                        : String(log.risk_reasons || "None")}
+
+                <CardContent className="space-y-4 pt-4 flex-1 flex flex-col">
+                  <div className="flex flex-col items-start gap-2">
+                    <span className="font-semibold shrink-0 text-muted-foreground">
+                      Agent Reported
+                    </span>
+                    <span className="font-mono break-all text-lg">
+                      {log.ip}
                     </span>
                   </div>
-                  {log.resolved_mark && log.resolved_notes && (
-                    <div className="text-sm mt-2 p-2 bg-muted rounded-md border">
-                      <span className="font-semibold text-xs uppercase tracking-wider text-muted-foreground block mb-1">
-                        Resolution Notes:
+                  {/* Risk Badge and Score */}
+                  <div className="flex items-center justify-between pb-1">
+                    <div className="space-y-1">
+                      <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                        Category
                       </span>
-                      {log.resolved_notes}
+                      <div>
+                        <Badge
+                          variant={
+                            low
+                              ? "green-subtle"
+                              : medium
+                                ? "yellow-subtle"
+                                : high
+                                  ? "red-subtle"
+                                  : "gray-subtle"
+                          }
+                        >
+                          {log.risk_category}
+                        </Badge>
+                      </div>
                     </div>
-                  )}
+                    <div className="space-y-1 text-right">
+                      <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                        Risk Score
+                      </span>
+                      <div
+                        className={`text-xl font-bold ${high ? "text-red-500" : medium ? "text-yellow-500" : low ? "text-green-500" : ""}`}
+                      >
+                        {log.risk_score}%
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Stats Grid */}
+                  <div className="grid grid-cols-2 gap-y-4 gap-x-2 bg-muted/40 p-3 rounded-lg border">
+                    <div>
+                      <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground block mb-0.5">
+                        Requests
+                      </span>
+                      <div className="font-mono text-sm">
+                        {log.request_count}
+                      </div>
+                    </div>
+                    <div>
+                      <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground block mb-0.5">
+                        Errors
+                      </span>
+                      <div className="font-mono text-sm">{log.error_count}</div>
+                    </div>
+                    <div>
+                      <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground block mb-0.5">
+                        Req/Sec
+                      </span>
+                      <div className="font-mono text-sm">
+                        {log.request_per_second}
+                      </div>
+                    </div>
+                    <div>
+                      <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground block mb-0.5">
+                        Unique Endpoint
+                      </span>
+                      <div className="font-mono text-sm">
+                        {log.unique_endpoint_ratio}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Status & Reasons */}
+                  <div className="space-y-3 flex-1 flex flex-col">
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm font-semibold">
+                        Resolution Status:
+                      </span>
+                      {log.resolved_mark ? (
+                        <Badge
+                          variant="outline"
+                          className="bg-green-50 text-green-700 border-green-200 dark:bg-green-950 dark:text-green-400 dark:border-green-800"
+                        >
+                          Resolved
+                        </Badge>
+                      ) : (
+                        <Badge
+                          variant="outline"
+                          className="bg-yellow-50 text-yellow-700 border-yellow-200 dark:bg-yellow-950 dark:text-yellow-400 dark:border-yellow-800"
+                        >
+                          Unresolved
+                        </Badge>
+                      )}
+                    </div>
+
+                    <div className="flex-1">
+                      <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground block mb-1">
+                        Reasons
+                      </span>
+                      <p className="text-sm text-foreground/80 bg-muted/20 p-2.5 rounded-md border min-h-[60px]">
+                        {Array.isArray(log.risk_reasons)
+                          ? log.risk_reasons.join(", ")
+                          : String(log.risk_reasons || "None")}
+                      </p>
+                    </div>
+
+                    {log.resolved_mark && log.resolved_notes && (
+                      <div className="text-sm p-3 bg-muted/50 rounded-md border border-l-4 border-l-green-500">
+                        <span className="font-semibold text-xs uppercase tracking-wider text-muted-foreground block mb-1">
+                          Resolution Notes:
+                        </span>
+                        <p className="text-foreground/80 italic">
+                          "{log.resolved_notes}"
+                        </p>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="text-[10px] mt-auto text-muted-foreground/70 text-right pt-2 flex items-center justify-end gap-1.5">
+                    <Clock className="size-3" />
+                    Reported at {new Date(log.updated_at).toLocaleString()}
+                  </div>
                 </CardContent>
               </Card>
             );
