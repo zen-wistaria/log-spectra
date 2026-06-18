@@ -7,7 +7,7 @@ import DialogConfirmUnresolved from "@/app/(dashboard)/resolved/_components/dial
 import { Button } from "@/components/ui/button";
 import { useUpdateAnomalyResolved } from "@/query/anomaly.query";
 import type { AnomalyUpdate } from "@/schema/anomaly.schema";
-import LogsFormResolved from "../../../_components/logs-form-resolved";
+import LogsFormResolved from "../../_components/logs-form-resolved";
 
 interface ThreadResolveButtonProps {
   ip: string;

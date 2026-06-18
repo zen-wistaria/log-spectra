@@ -236,7 +236,7 @@ export function TopSuspiciousIp() {
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
         {topIps.slice(0, 5).map((entry, idx) => (
           <Card key={idx} className="relative overflow-hidden">
-            <Link href={`/reports/ip/${entry.ip}`}>
+            <Link href={`/reports/${entry.ip}`}>
               <CardContent className="p-4">
                 <p className="mb-1 font-mono text-sm font-semibold truncate">
                   {entry.ip}

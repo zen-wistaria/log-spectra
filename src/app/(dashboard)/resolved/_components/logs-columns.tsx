@@ -54,7 +54,7 @@ export const getColumns = (): ColumnDef<IColumns>[] => [
       const medium = row.original.risk_category.toLowerCase() === "medium";
       const high = row.original.risk_category.toLowerCase() === "high";
       return (
-        <Link href={`/reports/ip/${row.original.ip}`}>
+        <Link href={`/reports/${row.original.ip}`}>
           <Badge
             className="hover:opacity-80 transition-opacity"
             variant={

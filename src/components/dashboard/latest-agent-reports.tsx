@@ -138,7 +138,7 @@ export function LatestAgentReports() {
                       {report.agent.ip_address ?? "—"}
                     </TableCell>
                     <TableCell className="text-xs font-mono">
-                      <Link href={`/reports/ip/${report.ip}`}>
+                      <Link href={`/reports/${report.ip}`}>
                         <Badge
                           className="hover:opacity-80 transition-opacity"
                           variant={

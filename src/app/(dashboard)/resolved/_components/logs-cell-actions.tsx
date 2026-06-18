@@ -55,7 +55,7 @@ export default function CellActions({ row }: { row: IColumns }) {
           <DropdownMenuSeparator />
           <DropdownMenuItem
             onSelect={() => {
-              router.push(`/reports/ip/${row.ip}`);
+              router.push(`/reports/${row.ip}`);
             }}
             variant="default"
           >
