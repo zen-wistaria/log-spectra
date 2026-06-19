@@ -36,8 +36,25 @@ from sklearn.preprocessing import RobustScaler
 
 logger = logging.getLogger(__name__)
 
-# User-agent patterns considered as API/bot clients
-API_USER_AGENTS = ["Dart", "curl", "Postman", "python", "Go-http-client"]
+# User-agent patterns considered as API/bot clients (legitimate)
+# Mencakup browser-like automation, search engine crawlers,
+# dan legitimate API agents — bukan DDoS/SCANNER bot.
+# Search engine crawlers dikecualikan karena mereka legitimate
+# dan mengakses banyak endpoint dengan error rate minimal,
+# namun dapat terdeteksi sebagai anomalili oleh model.
+API_USER_AGENTS = [
+    # API / automation / monitoring (existing)
+    "Dart", "curl", "Postman", "python", "Go-http-client",
+    # Search engine crawlers
+    "Googlebot", "bingbot", "Bingbot", "Slurp", "YandexBot",
+    "DuckDuckBot", "Baiduspider", "facebot", "facebookexternalhit",
+    # AI / research crawlers
+    "GPTBot", "Claude-Web", "CCBot", "anthropic-ai", "PerplexityBot",
+    # Common monitoring / uptime
+    "UptimeRobot", "Pingdom", "Datadog",
+    # RSS readers / validators
+    "Feedfetcher", "W3C_Validator",
+]
 API_UA_PATTERN = "|".join(API_USER_AGENTS)
 
 # Fitur yang digunakan sebagai input model Isolation Forest

@@ -47,7 +47,7 @@ THRESHOLD_MEDIUM = 40
 BURST_RPS_THRESHOLD = 5.0       # req/s di atas ini dianggap burst
 HIGH_ERROR_RATE_THRESHOLD = 0.3  # 30% error rate
 HIGH_ENDPOINT_RATIO_THRESHOLD = 0.7  # 70% unique endpoint ratio
-MIN_REQUESTS_FOR_RATIO_RULE = 10    # minimum request agar ratio rule bermakna
+MIN_REQUESTS_FOR_RATIO_RULE = 25    # minimum request agar ratio rule bermakna
 
 
 def _calculate_behavior_score(row: pd.Series) -> tuple[int, list[str]]:
@@ -115,12 +115,17 @@ def _calculate_behavior_score(row: pd.Series) -> tuple[int, list[str]]:
             f"n={int(row['request_count'])})"
         )
 
-    # Rule 4: Volume tinggi secara absolut
-    # Bonus kecil untuk request_count tinggi — tidak berdiri sendiri
-    # sebagai anomali, tapi memperkuat signal dari rule lain
-    if row["request_count"] > 200:
+    # Rule 4: Volume tinggi disertai intensitas
+    # request_count saja tidak cukup karena accumulated buffer bikin
+    # semua IP aktif punya count tinggi. Kombinasikan dengan rps
+    # untuk membedakan akumulasi umur vs burst nyata.
+    if row["request_count"] > 500 and row["request_per_second"] > 1:
         behavior_risk += 10
-        reasons.append(f"High request volume ({int(row['request_count'])} requests)")
+        reasons.append(
+            f"High traffic intensity "
+            f"({int(row['request_count'])} requests, "
+            f"{row['request_per_second']:.2f} req/s)"
+        )
 
     # Clamp ke 0-100 sebelum dikombinasikan
     behavior_risk = min(100, behavior_risk)
