@@ -13,7 +13,8 @@ import {
   Upload,
   X,
 } from "lucide-react";
-import { useRef, useState } from "react";
+import { useRouter } from "nextjs-toploader/app";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -42,8 +43,15 @@ interface AnalysisResult {
   ip: string;
   request_count: number;
   error_count: number;
+  error_rate: number;
+  avg_response_size: number;
+  response_size_std: number;
+  avg_url_length: number;
   request_per_second: number;
   unique_endpoint_ratio: number;
+  anomaly_score: number;
+  model_risk_score: number;
+  behavior_risk_score: number;
   risk_score: number;
   risk_category: "HIGH" | "MEDIUM" | "LOW";
   risk_reasons: string[];
@@ -84,6 +92,19 @@ function getRiskRowClass(category: string) {
   }
 }
 
+// ── Constants ──────────────────────────────────────────────────
+
+const MAX_STORED_IPS = 500;
+
+// ── Helper ─────────────────────────────────────────────────────
+
+/** Sort descending by risk_score, keep top N */
+function trimResultsForStorage(results: AnalysisResult[]): AnalysisResult[] {
+  return [...results]
+    .sort((a, b) => b.risk_score - a.risk_score)
+    .slice(0, MAX_STORED_IPS);
+}
+
 // ── Component ─────────────────────────────────────────────────
 
 export default function LogAnalyzerView() {
@@ -91,6 +112,7 @@ export default function LogAnalyzerView() {
   const [isLoading, setIsLoading] = useState(false);
   const [results, setResults] = useState<AnalysisResult[] | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const router = useRouter();
 
   // Isolation Forest parameters
   // const [nEstimators, setNEstimators] = useState(200);
@@ -102,6 +124,21 @@ export default function LogAnalyzerView() {
       contamination: 0.02,
     },
   });
+
+  // Restore results from sessionStorage on mount (survives back navigation)
+  useEffect(() => {
+    const stored = sessionStorage.getItem("log-analyzer-results");
+    if (stored) {
+      try {
+        const parsed = JSON.parse(stored) as AnalysisResult[];
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setResults(parsed);
+        }
+      } catch {
+        // ignore corrupt data
+      }
+    }
+  }, []);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0];
@@ -120,6 +157,8 @@ export default function LogAnalyzerView() {
   const handleClearFile = () => {
     setFile(null);
     setResults(null);
+    sessionStorage.removeItem("log-analyzer-results");
+    sessionStorage.removeItem("log-analyzer-selected-ip");
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
     }
@@ -155,6 +194,10 @@ export default function LogAnalyzerView() {
       }
 
       setResults(data.results);
+      sessionStorage.setItem(
+        "log-analyzer-results",
+        JSON.stringify(trimResultsForStorage(data.results)),
+      );
       toast.success(
         `Analysis complete — ${data.results.length} IP(s) analyzed`,
       );
@@ -165,9 +208,15 @@ export default function LogAnalyzerView() {
     }
   };
 
-  const hasErrors = Object.keys(form.state.errorMap).length > 0;
-
-  const canSubmit = !hasErrors && !form.state.isSubmitting && file !== null;
+  const handleRowClick = (row: AnalysisResult) => {
+    // Store all results so the detail page can reference them without DB
+    sessionStorage.setItem(
+      "log-analyzer-results",
+      JSON.stringify(trimResultsForStorage(results ?? [])),
+    );
+    sessionStorage.setItem("log-analyzer-selected-ip", row.ip);
+    router.push(`/log-analyzer/${row.ip}`);
+  };
 
   const highCount =
     results?.filter((r) => r.risk_category === "HIGH").length ?? 0;
@@ -409,6 +458,8 @@ export default function LogAnalyzerView() {
                     <TableHead className="text-right">Error Count</TableHead>
                     <TableHead className="text-right">Requests/sec</TableHead>
                     <TableHead className="text-right">Endpoint Ratio</TableHead>
+                    <TableHead className="text-right">Model Score</TableHead>
+                    <TableHead className="text-right">Behavior Score</TableHead>
                     <TableHead className="text-right">Risk Score</TableHead>
                     <TableHead>Risk Category</TableHead>
                     <TableHead className="hidden lg:table-cell">
@@ -420,7 +471,8 @@ export default function LogAnalyzerView() {
                   {results.map((row) => (
                     <TableRow
                       key={row.ip}
-                      className={getRiskRowClass(row.risk_category)}
+                      className={`${getRiskRowClass(row.risk_category)} cursor-pointer`}
+                      onClick={() => handleRowClick(row)}
                     >
                       <TableCell className="text-xs font-mono font-medium">
                         <Badge variant={getRiskBadgeVariant(row.risk_category)}>
@@ -438,6 +490,12 @@ export default function LogAnalyzerView() {
                       </TableCell>
                       <TableCell className="text-xs text-right">
                         {row.unique_endpoint_ratio}
+                      </TableCell>
+                      <TableCell className="text-xs text-right font-mono">
+                        {row.model_risk_score}
+                      </TableCell>
+                      <TableCell className="text-xs text-right font-mono">
+                        {row.behavior_risk_score}
                       </TableCell>
                       <TableCell className="text-xs text-right font-semibold">
                         <Badge variant={getRiskBadgeVariant(row.risk_category)}>
