@@ -11,7 +11,7 @@ import platform
 
 logger = logging.getLogger(__name__)
 
-AGENT_VERSION = "1.1.0"
+AGENT_VERSION = "1.1.1"
 
 
 def get_machine_id() -> str:
