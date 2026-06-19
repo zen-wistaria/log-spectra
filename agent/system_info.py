@@ -8,10 +8,9 @@ import socket
 import logging
 import platform
 
-
 logger = logging.getLogger(__name__)
 
-AGENT_VERSION = "1.1.1"
+AGENT_VERSION = "1.1.2"
 
 
 def get_machine_id() -> str:
@@ -38,6 +37,7 @@ def get_machine_id() -> str:
     # Windows: registry MachineGuid
     try:
         import winreg
+
         key = winreg.OpenKey(
             winreg.HKEY_LOCAL_MACHINE,
             r"SOFTWARE\Microsoft\Cryptography",
@@ -51,6 +51,7 @@ def get_machine_id() -> str:
 
     # Fallback: hash of hostname
     import hashlib
+
     return hashlib.md5(socket.gethostname().encode()).hexdigest()
 
 
@@ -131,7 +132,11 @@ def collect_system_info() -> dict:
 
     logger.info(
         "System info — version: %s | machine_id: %s | os: %s | hostname: %s | ip: %s",
-        AGENT_VERSION, machine_id, os_info, hostname, ip_address,
+        AGENT_VERSION,
+        machine_id,
+        os_info,
+        hostname,
+        ip_address,
     )
 
     return {
