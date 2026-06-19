@@ -1,7 +1,14 @@
 """
 Log reader module using pygtail for incremental nginx log reading.
-Supports logrotate and maintains an in-memory buffer for accumulated analysis.
-Integrates with LogAccumulator for disk-based persistence.
+Supports logrotate and maintains a bounded in-memory buffer (sliding window)
+for analysis. Integrates with LogAccumulator for disk-based persistence.
+
+Buffer vs Accumulator — perbedaan peran:
+  - Accumulator (.accumulated file): persist all raw lines to survive log
+    rotation. Unbounded (trimmed at max_size_mb). Purpose: data retention.
+  - Buffer (in-memory list[dict]): only holds the latest N entries for
+    Isolation Forest analysis. Automatically trimmed (oldest discarded)
+    when exceeding buffer_max_lines. Purpose: bounded memory + fast analysis.
 """
 
 import re
@@ -54,44 +61,47 @@ def parse_log_line(line: str) -> dict | None:
 class LogReader:
     """
     Reads nginx access logs incrementally using pygtail.
-    Maintains an in-memory buffer of all parsed log entries.
-    Supports logrotate — pygtail tracks file offsets automatically.
-    Uses LogAccumulator for disk persistence across log rotations.
+    Maintains a bounded in-memory buffer (sliding window) and persists
+    raw lines to disk via LogAccumulator for rotation resilience.
 
-    Sinkronisasi buffer in-memory dengan disk:
-    LogAccumulator melakukan trim otomatis di disk ketika file melebihi
-    max_size_mb. Tanpa sinkronisasi, buffer in-memory akan terus tumbuh
-    tidak terbatas meski disk sudah di-trim, yang berpotensi menyebabkan
-    OOM (Out of Memory) pada agent yang berjalan lama.
+    Buffer independently bounded by ``buffer_max_lines`` — oldest entries
+    are discarded when the buffer exceeds this limit. The disk accumulator
+    is unbounded (trimmed only by file size) for data retention.
 
-    Solusi: setelah setiap append ke disk, bandingkan jumlah baris di
-    disk dengan jumlah entri di buffer. Jika disk lebih kecil (sudah
-    di-trim), rebuild buffer dari disk agar keduanya sinkron.
+    LogAccumulator handles its own file-size trim independently.
+    Buffer and accumulator are DECOUPLED — buffer is NOT rebuilt from
+    disk after trim, avoiding expensive I/O. On restart the buffer is
+    restored from the tail of the accumulated file (last N lines only).
     """
 
-    def __init__(self, log_path: str, max_size_mb: int = 200):
+    def __init__(self, log_path: str, max_size_mb: int = 200, buffer_max_lines: int = 100000):
         self.log_path = log_path
         self.offset_file = log_path + ".offset"
         self.buffer: list[dict] = []
+        self._buffer_max_lines = buffer_max_lines
 
-        # Initialize disk-based accumulator
+        # Initialize disk-based accumulator (independent of buffer)
         self._accumulator = LogAccumulator(log_path, max_size_mb)
 
-        # Restore buffer from accumulated log on startup
+        # Restore buffer from tail of accumulated log (last N lines only)
         self._restore_from_accumulated()
 
         logger.info(
-            "LogReader initialized for: %s (buffer restored: %d entries)",
+            "LogReader initialized for: %s (buffer_max_lines=%d, restored=%d entries)",
             log_path,
+            buffer_max_lines,
             len(self.buffer),
         )
 
     def _restore_from_accumulated(self) -> None:
         """
-        Restore the in-memory buffer from the accumulated log file.
-        Called once during initialization to recover data after restart.
+        Restore the in-memory buffer from the TAIL of the accumulated log.
+
+        Only loads the last ``buffer_max_lines`` entries to bound memory.
+        Previously this loaded the entire accumulated file — wasteful since
+        we only need recent data for analysis.
         """
-        accumulated_lines = self._accumulator.read_all_lines()
+        accumulated_lines = self._accumulator.read_tail_lines(self._buffer_max_lines)
         if not accumulated_lines:
             return
 
@@ -103,21 +113,41 @@ class LogReader:
                 restored_count += 1
 
         logger.info(
-            "Restored %d entries from accumulated log (%d lines parsed)",
+            "Restored %d entries from accumulated log tail (%d lines parsed)",
             restored_count,
             len(accumulated_lines),
         )
 
+    def _trim_buffer(self) -> None:
+        """
+        Trim oldest entries to keep buffer within ``buffer_max_lines``.
+
+        Called after every append. Discards from the front (oldest) so the
+        buffer always contains the most recent data for Isolation Forest.
+        """
+        if len(self.buffer) <= self._buffer_max_lines:
+            return
+
+        excess = len(self.buffer) - self._buffer_max_lines
+        self.buffer = self.buffer[excess:]
+        logger.info(
+            "Buffer trimmed: removed %d oldest entries (%d remaining)",
+            excess,
+            len(self.buffer),
+        )
+
     def read_new_lines(self) -> list[dict]:
         """
-        Read new log lines since last read.
-        Returns list of newly parsed log entries.
-        Also appends them to the internal buffer and persists
-        raw lines to the accumulated log file.
+        Read new log lines since last read using pygtail offset tracking.
 
-        Setelah persist ke disk, cek apakah disk di-trim oleh
-        LogAccumulator. Jika ya, sinkronkan buffer in-memory dari disk
-        agar penggunaan memory tetap terkontrol.
+        New entries are:
+        1. Appended to in-memory buffer (sliding-window trimmed)
+        2. Persisted as raw lines to disk accumulator (unbounded)
+
+        The disk accumulator handles its own size-based trim independently.
+        No sync/rebuild of buffer from disk — buffer and disk are decoupled.
+
+        Returns list of newly parsed log entries.
         """
         new_entries = []
         raw_lines = []
@@ -147,54 +177,17 @@ class LogReader:
                 len(new_entries),
                 len(self.buffer),
             )
+            # Trim from front (oldest) to stay within limit
+            self._trim_buffer()
 
-        # Persist raw lines to disk (even if some failed parsing,
-        # so we don't lose data for future re-parsing)
+        # Persist raw lines to disk (buffer and accumulator are independent)
         if raw_lines:
-            size_before = self._accumulator.get_file_size_bytes()
             self._accumulator.append_lines(raw_lines)
-            size_after = self._accumulator.get_file_size_bytes()
-
-            # Jika ukuran file disk mengecil, berarti trim terjadi.
-            # Sinkronkan buffer in-memory dari disk agar tidak OOM.
-            if size_after < size_before:
-                logger.info(
-                    "Disk trim detected (%.1fMB → %.1fMB), "
-                    "syncing in-memory buffer from disk...",
-                    size_before / (1024 * 1024),
-                    size_after / (1024 * 1024),
-                )
-                self._sync_buffer_from_disk()
 
         return new_entries
 
-    def _sync_buffer_from_disk(self) -> None:
-        """
-        Rebuild buffer in-memory dari accumulated log di disk.
-
-        Dipanggil setelah LogAccumulator melakukan trim agar
-        buffer in-memory tidak melebihi data yang tersimpan di disk.
-        Ini mencegah akumulasi memory yang tidak terkontrol pada
-        agent yang berjalan selama berhari-hari.
-        """
-        old_size = len(self.buffer)
-        accumulated_lines = self._accumulator.read_all_lines()
-
-        new_buffer = []
-        for line in accumulated_lines:
-            entry = parse_log_line(line)
-            if entry:
-                new_buffer.append(entry)
-
-        self.buffer = new_buffer
-        logger.info(
-            "Buffer synced from disk: %d → %d entries",
-            old_size,
-            len(self.buffer),
-        )
-
     def get_buffer(self) -> list[dict]:
-        """Return the full accumulated buffer."""
+        """Return the buffered log entries (latest N, bounded)."""
         return self.buffer
 
     def get_buffer_size(self) -> int:

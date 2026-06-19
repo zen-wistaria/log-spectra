@@ -31,6 +31,7 @@ DEFAULTS = {
     "max_ips_per_report": 10,             # Number of top-risk IPs to send per report
     "heartbeat_endpoint": "/api/v1/agents/heartbeat",  # Heartbeat API endpoint path
     "heartbeat_interval": 300,  # Heartbeat interval in seconds (5 minutes)
+    "buffer_max_lines": 100000,  # Max entries in in-memory buffer (sliding window)
 }
 
 

@@ -95,6 +95,68 @@ class LogAccumulator:
             logger.error("Failed to read accumulated log: %s", e)
             return []
 
+    def read_tail_lines(self, n: int) -> list[str]:
+        """
+        Read and return the last ``n`` lines from the accumulated log file.
+
+        Efficient: reads from end of file in chunks to bound memory.
+        Jika file lebih kecil dari ``n`` lines, semua line dikembalikan.
+
+        Returns empty list if file doesn't exist.
+        """
+        if not os.path.isfile(self._accumulated_path):
+            return []
+
+        try:
+            with open(self._accumulated_path, "rb") as f:
+                f.seek(0, os.SEEK_END)
+                file_size = f.tell()
+                if file_size == 0:
+                    return []
+
+                # Estimate bytes needed: n * avg_line_length * 1.5 safety
+                # avg nginx line ~250-400 bytes
+                est_size = min(file_size, int(n * 400 * 1.5))
+                f.seek(file_size - est_size)
+                data = f.read(est_size)
+
+                # Split into lines, take last n from where we read
+                lines = data.split(b"\n")
+
+                if len(lines) > n:
+                    # We have enough — take last n lines
+                    lines = lines[-n:]
+                elif est_size < file_size:
+                    # Estimate too low, read more from end
+                    # Try reading from 10% further back, up to full file
+                    for factor in (2.0, 3.0, 5.0, 10.0):
+                        read_size = min(file_size, int(n * 400 * factor))
+                        f.seek(file_size - read_size)
+                        data = f.read(read_size)
+                        lines = data.split(b"\n")
+                        if len(lines) >= n:
+                            lines = lines[-n:]
+                            break
+                    else:
+                        # Fallback: read everything
+                        f.seek(0)
+                        lines = f.read().split(b"\n")[-n:]
+
+            result = [
+                line.decode("utf-8").rstrip("\n\r")
+                for line in lines
+                if line.strip()
+            ]
+            logger.info(
+                "Loaded %d lines from tail of accumulated log (%d requested)",
+                len(result), n,
+            )
+            return result
+
+        except OSError as e:
+            logger.error("Failed to read tail of accumulated log: %s", e)
+            return []
+
     def get_file_size_bytes(self) -> int:
         """Return the current file size in bytes, or 0 if not found."""
         try:

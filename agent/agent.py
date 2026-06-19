@@ -250,10 +250,11 @@ def main():
     logger.info("Collecting system information...")
     sys_info = collect_system_info()
 
-    # Initialize log reader with disk accumulation
+    # Initialize log reader with bounded buffer + disk accumulation
     reader = LogReader(
         config["log_path"],
         max_size_mb=config["accumulated_log_max_size_mb"],
+        buffer_max_lines=config["buffer_max_lines"],
     )
 
     api_url = f"{config['server_url'].rstrip('/')}{config['api_endpoint']}"
