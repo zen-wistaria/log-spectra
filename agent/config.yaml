@@ -39,10 +39,10 @@ min_log_lines: 100
 # The accumulated log persists across log rotations.
 accumulated_log_max_size_mb: 200
 
-# Number of top-risk IPs to include in each report sent to the server.
-# IPs are sorted by risk score (HIGH → LOW) before selecting.
-# Default: 10, max: 50
-max_ips_per_report: 10
+# Minimum risk score for an IP to be included in the report to the server.
+# IPs with a risk score at or above this threshold will be sent.
+# Default: 60, min: 0, max: 100
+min_risk_score_to_send: 60
 
 # Retry settings for HTTP requests
 retry_max: 3

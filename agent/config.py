@@ -11,7 +11,6 @@ logger = logging.getLogger(__name__)
 
 # ─── Constants ──────────────────────────────────────────────
 ACCUMULATED_LOG_MAX_CAP_MB = 500  # Hard cap for accumulated log size
-MAX_IPS_PER_REPORT_CAP = 50       # Hard cap for IPs sent per report
 HEARTBEAT_INTERVAL_MAX = 600      # Hard cap for heartbeat interval (10 minutes)
 
 # ─── Defaults ───────────────────────────────────────────────
@@ -28,7 +27,7 @@ DEFAULTS = {
     "log_level": "INFO",
     "min_log_lines": 100,                # Minimum lines before first analysis
     "accumulated_log_max_size_mb": 200,   # Max accumulated log file size (MB)
-    "max_ips_per_report": 10,             # Number of top-risk IPs to send per report
+    "min_risk_score_to_send": 60,         # Minimum risk score to send to server
     "heartbeat_endpoint": "/api/v1/agents/heartbeat",  # Heartbeat API endpoint path
     "heartbeat_interval": 300,  # Heartbeat interval in seconds (5 minutes)
     "buffer_max_lines": 100000,  # Max entries in in-memory buffer (sliding window)
@@ -68,7 +67,7 @@ def parse_cli_args() -> argparse.Namespace:
     parser.add_argument("--analysis-interval", type=int, help="Analysis interval in seconds")
     parser.add_argument("--min-log-lines", type=int, help="Minimum log lines before first analysis")
     parser.add_argument("--accumulated-log-max-size-mb", type=int, help="Max accumulated log file size in MB (max: 500)")
-    parser.add_argument("--max-ips-per-report", type=int, help="Number of top-risk IPs to send per report (max: 50)")
+    parser.add_argument("--min-risk-score-to-send", type=int, help="Minimum risk score to send to server (0-100)")
     parser.add_argument("--heartbeat-endpoint", type=str, help="Heartbeat API endpoint path")
     parser.add_argument("--heartbeat-interval", type=int, help="Heartbeat interval in seconds (max: 600)")
     parser.add_argument("--config", type=str, default="config.yaml", help="Path to YAML config file")
@@ -105,7 +104,7 @@ def load_config() -> dict:
         "AGENT_ANALYSIS_INTERVAL": "analysis_interval",
         "AGENT_MIN_LOG_LINES": "min_log_lines",
         "AGENT_ACCUMULATED_LOG_MAX_SIZE_MB": "accumulated_log_max_size_mb",
-        "AGENT_MAX_IPS_PER_REPORT": "max_ips_per_report",
+        "AGENT_MIN_RISK_SCORE_TO_SEND": "min_risk_score_to_send",
         "AGENT_LOG_LEVEL": "log_level",
         "AGENT_HEARTBEAT_ENDPOINT": "heartbeat_endpoint",
         "AGENT_HEARTBEAT_INTERVAL": "heartbeat_interval",
@@ -126,7 +125,7 @@ def load_config() -> dict:
         "analysis_interval": cli.analysis_interval,
         "min_log_lines": cli.min_log_lines,
         "accumulated_log_max_size_mb": cli.accumulated_log_max_size_mb,
-        "max_ips_per_report": cli.max_ips_per_report,
+        "min_risk_score_to_send": cli.min_risk_score_to_send,
         "log_level": cli.log_level,
         "heartbeat_endpoint": cli.heartbeat_endpoint,
         "heartbeat_interval": cli.heartbeat_interval,
@@ -152,21 +151,19 @@ def load_config() -> dict:
         )
         config["min_log_lines"] = 1
 
-    if config["max_ips_per_report"] > MAX_IPS_PER_REPORT_CAP:
+    if config["min_risk_score_to_send"] > 100:
         logger.warning(
-            "max_ips_per_report=%d exceeds maximum %d, clamping to %d",
-            config["max_ips_per_report"],
-            MAX_IPS_PER_REPORT_CAP,
-            MAX_IPS_PER_REPORT_CAP,
+            "min_risk_score_to_send=%d exceeds maximum 100, clamping to 100",
+            config["min_risk_score_to_send"],
         )
-        config["max_ips_per_report"] = MAX_IPS_PER_REPORT_CAP
+        config["min_risk_score_to_send"] = 100
 
-    if config["max_ips_per_report"] < 1:
+    if config["min_risk_score_to_send"] < 0:
         logger.warning(
-            "max_ips_per_report=%d is invalid, setting to 1",
-            config["max_ips_per_report"],
+            "min_risk_score_to_send=%d is invalid, setting to 0",
+            config["min_risk_score_to_send"],
         )
-        config["max_ips_per_report"] = 1
+        config["min_risk_score_to_send"] = 0
 
     if config["heartbeat_interval"] > HEARTBEAT_INTERVAL_MAX:
         logger.warning(

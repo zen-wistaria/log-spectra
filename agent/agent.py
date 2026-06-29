@@ -30,28 +30,19 @@ def setup_logging(level: str) -> None:
     )
 
 
-def build_payload(result_df, max_ips: int, sys_info: dict) -> dict:
+def build_payload(result_df, min_risk: int, sys_info: dict) -> dict:
     """Build the JSON payload to send to the main server.
 
-    Hanya IP dengan risk_category MEDIUM atau HIGH yang dikirim.
-    Jika tidak ada, kirim top N tetap sebagai informasi — tapi tandai
-    sebagai LOW_RISK agar dashboard bisa filter.
+    Hanya IP dengan risk_score >= min_risk yang dikirim.
+    Jika tidak ada yang memenuhi syarat, hasilnya bisa kosong.
 
     ``sys_info`` must contain the keys returned by
     :func:`system_info.collect_system_info`:
     ``version``, ``machine_id``, ``os``, ``hostname``, ``ip_address``.
     """
-    # Filter: hanya MEDIUM/HIGH
-    suspicious = result_df[result_df["risk_category"].isin(["MEDIUM", "HIGH"])]
-
-    # Kalau ada, kirim semua (atau top N, mana yg lebih kecil)
-    if len(suspicious) > 0:
-        selected = suspicious.sort_values("risk_score", ascending=False)
-        if len(selected) > max_ips:
-            selected = selected.head(max_ips)
-    else:
-        # Fallback: kirim top N biar server tetap liat data
-        selected = result_df.sort_values("risk_score", ascending=False).head(max_ips)
+    # Filter: hanya IP dengan risk_score >= min_risk
+    selected = result_df[result_df["risk_score"] >= min_risk]
+    selected = selected.sort_values("risk_score", ascending=False)
 
     results = []
     for _, row in selected.iterrows():
@@ -324,26 +315,30 @@ def main():
                 )
 
                 if result is not None and not result.empty:
-                    # Build and send payload (sorted HIGH → LOW, top N IPs)
+                    # Build payload using min_risk_score_to_send threshold
                     payload = build_payload(
                         result,
-                        max_ips=config["max_ips_per_report"],
+                        min_risk=config["min_risk_score_to_send"],
                         sys_info=sys_info,
                     )
 
-                    logger.info(
-                        "Analysis complete: %d IPs analyzed, sending top %d to server...",
-                        len(result),
-                        len(payload["results"]),
-                    )
+                    if len(payload["results"]) > 0:
+                        logger.info(
+                            "Analysis complete: %d IPs analyzed, sending %d IPs (>= %d%% risk) to server...",
+                            len(result),
+                            len(payload["results"]),
+                            config["min_risk_score_to_send"]
+                        )
 
-                    send_to_server(
-                        api_url,
-                        payload,
-                        auth_token=config["auth_token"],
-                        retry_max=config["retry_max"],
-                        retry_backoff=config["retry_backoff"],
-                    )
+                        send_to_server(
+                            api_url,
+                            payload,
+                            auth_token=config["auth_token"],
+                            retry_max=config["retry_max"],
+                            retry_backoff=config["retry_backoff"],
+                        )
+                    else:
+                        logger.info("No IPs met the minimum risk score threshold (%d%%). Skipping report.", config["min_risk_score_to_send"])
                 else:
                     logger.info("No results to send this cycle")
 
