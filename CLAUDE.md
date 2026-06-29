@@ -11,7 +11,7 @@ Access Log → LogReader → Feature Engineering (7 fitur per IP)
                                          ↓
                               Hybrid Risk Scoring (60% model + 40% behavior rules)
                                          ↓
-                              Cascade: risk_category MEDIUM/HIGH → kirim ke server
+                              Cascade: risk_score >= min_risk_score_to_send (default 60) → kirim ke server
                               (risk scoring dihitung untuk SEMUA IP, bukan hanya yg anomali IF)
 ```
 
@@ -19,7 +19,7 @@ Access Log → LogReader → Feature Engineering (7 fitur per IP)
 
 1. **Isolation Forest** → label semua IP: -1 (anomali) / +1 (normal)
 2. **Risk Scoring** (semua IP) → model_risk × 60% + behavior_risk × 40% → risk_score 0-100
-3. **Filter** → hanya IP dengan risk_category MEDIUM/HIGH dikirim ke server via `build_payload()`
+3. **Filter** → hanya IP dengan risk_score >= `min_risk_score_to_send` (default: 60) dikirim ke server via `build_payload()`
 
 **Mengapa risk scoring dihitung untuk semua IP?** Karena behavior rules bisa mendeteksi IP yang lolos IF. Contoh: IP dengan error_rate 92% tapi anomaly_score -0.0133 (IF bilang normal) → behavior rules trigger → risk_score 64.2 → MEDIUM.
 
@@ -35,7 +35,7 @@ Python agent yg di-deploy ke server web yg dimonitor. Baca nginx `access.log` in
 3. `feature_engineering()` — ekstrak 7 fitur per IP: request_count, error_rate, avg_response_size, response_size_std, avg_url_length, request_per_second, unique_endpoint_ratio
 4. `detect_anomalies()` — RobustScaler → Isolation Forest → threshold percentile-adjusted → label anomali
 5. `calculate_risk()` — hybrid scoring: 60% model_risk + 40% behavior_risk. Kategori: LOW (<40), MEDIUM (40-69), HIGH (≥70). **Cascade boost:** behavior >= 20 → minimal MEDIUM.
-6. `build_payload()` — filter IP MEDIUM/HIGH saja, kirim ke server
+6. `build_payload()` — filter IP berdasarkan threshold `min_risk_score_to_send` (misal 60), urutkan berdasarkan risk_score tertinggi, lalu kirim ke server
 7. `_http_post()` — kirim hasil via HTTP POST dengan Bearer token (Bearer auth), retry + exponential backoff
 8. `_heartbeat_loop()` — thread terpisah, kirim heartbeat periodik (default tiap 5 menit)
 
@@ -195,7 +195,7 @@ bun run db:seed      # Seed user
 - Feature engineering + Isolation Forest di-duplicated antara `agent/` dan `fastapi/` — kode serupa, path beda (fastapi/analyzer.py vs agent/analyzer.py). **Kedua path harus selalu sync** termasuk threshold rules dan bot UA list.
 - Anomaly detection per IP, bukan per request — setiap IP jadi satu sample.
 - Agent pake **sliding window buffer** (default 100K entries, ~100MB RAM) + **disk accumulator** (.accumulated, max 200MB). Buffer & disk **decoupled**.
-- Risk scoring dihitung untuk **SEMUA IP** — bukan hanya yang dilabel anomali oleh IF. Filter MEDIUM/HIGH baru dilakukan di `build_payload()`.
+- Risk scoring dihitung untuk **SEMUA IP** — bukan hanya yang dilabel anomali oleh IF. Filter berbasis konfigurasi `min_risk_score_to_send` (contoh: 60) baru dilakukan di `build_payload()` untuk mengurangi beban jaringan.
 - FP di evaluasi mungkin termasuk anomali asli di access.log yang tidak terlabel — precision sebenarnya mungkin lebih tinggi.
 - Slow crawler (error=0, rps rendah, endpoint ratio tinggi) adalah border case yang lolos deteksi — tidak trigger IF juga tidak trigger behavior rules.
 - Random Forest mencapai F1=1.0 — supervised tetap unggul, tapi butuh labeled data.
