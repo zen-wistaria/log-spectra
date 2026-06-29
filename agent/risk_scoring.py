@@ -76,6 +76,8 @@ def _calculate_behavior_score(row: pd.Series) -> tuple[int, list[str]]:
     | Error   | error_rate > 0.3 AND req >= 10         | +30   | Scanning / fuzzing aktif    |
     | Endpoint| ratio > 0.7 AND req >= 25              | +25   | Crawling / path enumeration |
     | Volume  | req_count > 500 AND req/s > 1          | +10   | Volume + intensitas abnormal|
+    | IoC     | URL/Body contains SQLi/XSS/etc patterns| +60   | Explicit attack attempt     |
+    | User-Ag | Suspicious UA (Scanner/Bot/Empty)      | +20   | Attack tool / Bare client   |
     +---------+----------------------------------------+-------+-----------------------------+
 
     Catatan: Rule endpoint disyaratkan minimum 25 request agar
