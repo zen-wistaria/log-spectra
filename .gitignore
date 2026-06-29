@@ -47,6 +47,7 @@ next-env.d.ts
 /agent/dist
 /agent/build
 /agent/*.spec
+/agent/__pycache__
 /fastapi/.venv
 /fastapi/__pycache__
 /log_testing

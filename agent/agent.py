@@ -33,22 +33,32 @@ def setup_logging(level: str) -> None:
 def build_payload(result_df, max_ips: int, sys_info: dict) -> dict:
     """Build the JSON payload to send to the main server.
 
-    Results are sorted by risk_score descending (HIGH → LOW) and
-    limited to the top ``max_ips`` entries.
+    Hanya IP dengan risk_category MEDIUM atau HIGH yang dikirim.
+    Jika tidak ada, kirim top N tetap sebagai informasi — tapi tandai
+    sebagai LOW_RISK agar dashboard bisa filter.
 
     ``sys_info`` must contain the keys returned by
     :func:`system_info.collect_system_info`:
     ``version``, ``machine_id``, ``os``, ``hostname``, ``ip_address``.
     """
-    # Sort by risk_score descending and take top N
-    top_results = result_df.sort_values("risk_score", ascending=False).head(max_ips)
+    # Filter: hanya MEDIUM/HIGH
+    suspicious = result_df[result_df["risk_category"].isin(["MEDIUM", "HIGH"])]
+
+    # Kalau ada, kirim semua (atau top N, mana yg lebih kecil)
+    if len(suspicious) > 0:
+        selected = suspicious.sort_values("risk_score", ascending=False)
+        if len(selected) > max_ips:
+            selected = selected.head(max_ips)
+    else:
+        # Fallback: kirim top N biar server tetap liat data
+        selected = result_df.sort_values("risk_score", ascending=False).head(max_ips)
 
     results = []
-    for _, row in top_results.iterrows():
+    for _, row in selected.iterrows():
         results.append({
             "ip": row["ip"],
             "request_count": int(row["request_count"]),
-            "error_count": int(row["error_count"]),       # metadata dari feature_engineering
+            "error_count": int(row["error_count"]),
             "error_rate": round(float(row["error_rate"]), 4),
             "request_per_second": round(float(row["request_per_second"]), 4),
             "unique_endpoint_ratio": round(float(row["unique_endpoint_ratio"]), 4),

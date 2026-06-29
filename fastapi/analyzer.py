@@ -29,6 +29,7 @@ Referensi pendekatan:
 """
 
 import logging
+import re
 import numpy as np
 import pandas as pd
 from sklearn.ensemble import IsolationForest
@@ -36,28 +37,65 @@ from sklearn.preprocessing import RobustScaler
 
 logger = logging.getLogger(__name__)
 
+# Pola-pola Indikator Kompromi (IoC) di URL dan User-Agent
+# Untuk perbandingan
+# Referensi: Chua et al. (2024) — URI_occurrences, IOC_occurrences
+IOC_PATTERNS = [
+    r"(%27|%22|%3C|%3E|%3D|%3B)",
+    r"\b(union\s+select|select\s+.*\s+from|insert\s+into|drop\s+table)",
+    r"(--|#|;)\s*$",
+    r"(<script|alert\(|onerror=|onload=|onclick=|javascript:)",
+    r"(%3Cscript|%3E%3C|%3Ciframe)",
+    r"(\.\./|\.\.\\){2,}",
+    r"(/etc/passwd|/proc/self|/boot/grub|/windows/system32)",
+    r"(cmd=|exec=|eval=|system\(|passthru\(|shell_exec)",
+    r"(`.*`|\$\(.*\))",
+    r"(\x00|\x04|\x08|\x0d|\x1b|\x7f)",
+]
+IOC_REGEX = re.compile("|".join(IOC_PATTERNS), re.IGNORECASE)
+
+# Suspicious User-Agent patterns (headless, empty, or unusual)
+SUSPICIOUS_UA_PATTERNS = [
+    r"^$",
+    r"^[\s\-]*$",
+    r"^[A-Z]+/\d+\.\d+",
+    r"curl/\d+",
+    r"Wget/\d+",
+    r"(Go-http-client|okhttp|axios|aiohttp|httpx|requests)",
+    r"(masscan|nmap|zgrab|Nikto|sqlmap|acunetix)",
+]
+SUSPICIOUS_UA_REGEX = re.compile("|".join(SUSPICIOUS_UA_PATTERNS), re.IGNORECASE)
+
 # User-agent patterns considered as API/bot clients (legitimate)
-# Mencakup browser-like automation, search engine crawlers,
-# dan legitimate API agents — bukan DDoS/SCANNER bot.
-# Search engine crawlers dikecualikan karena mereka legitimate
-# dan mengakses banyak endpoint dengan error rate minimal,
-# namun dapat terdeteksi sebagai anomalili oleh model.
 API_USER_AGENTS = [
-    # API / automation / monitoring (existing)
-    "Dart", "curl", "Postman", "python", "Go-http-client",
-    # Search engine crawlers
-    "Googlebot", "bingbot", "Bingbot", "Slurp", "YandexBot",
-    "DuckDuckBot", "Baiduspider", "facebot", "facebookexternalhit",
-    # AI / research crawlers
-    "GPTBot", "Claude-Web", "CCBot", "anthropic-ai", "PerplexityBot",
-    # Common monitoring / uptime
-    "UptimeRobot", "Pingdom", "Datadog",
-    # RSS readers / validators
-    "Feedfetcher", "W3C_Validator",
+    "Dart",
+    "curl",
+    "Postman",
+    "python",
+    "Go-http-client",
+    "Googlebot",
+    "bingbot",
+    "Bingbot",
+    "Slurp",
+    "YandexBot",
+    "DuckDuckBot",
+    "Baiduspider",
+    "facebot",
+    "facebookexternalhit",
+    "GPTBot",
+    "Claude-Web",
+    "CCBot",
+    "anthropic-ai",
+    "PerplexityBot",
+    "UptimeRobot",
+    "Pingdom",
+    "Datadog",
+    "Feedfetcher",
+    "W3C_Validator",
 ]
 API_UA_PATTERN = "|".join(API_USER_AGENTS)
 
-# Fitur yang digunakan sebagai input model Isolation Forest
+# Fitur yang digunakan sebagai input model Isolation Forest per-IP
 MODEL_FEATURE_COLS = [
     "request_count",
     "error_rate",
@@ -69,90 +107,205 @@ MODEL_FEATURE_COLS = [
 ]
 
 
+def _detect_ioc(text: str) -> bool:
+    """Cek apakah string mengandung pola Indikator Kompromi."""
+    if not text:
+        return False
+    return bool(IOC_REGEX.search(text))
+
+
+def _is_suspicious_ua(ua: str) -> bool:
+    """Cek apakah User-Agent mencurigakan (headless, empty, scan tool)."""
+    if not ua or not ua.strip():
+        return True
+    return bool(SUSPICIOUS_UA_REGEX.search(ua))
+
+
+# ============================================================
+# FITUR TAMBAHAN PER-IP (dari agregasi raw request)
+# ============================================================
+
+
 def feature_engineering(log_entries: list[dict]) -> pd.DataFrame:
     """
     Ekstraksi fitur per IP address dari raw log entries.
 
-    Setiap IP direpresentasikan sebagai satu baris fitur yang
-    merangkum seluruh perilakunya dalam window waktu analisis.
-
-    Parameters
-    ----------
-    log_entries : list[dict]
-        List log entry hasil parsing nginx log.
-
-    Returns
-    -------
-    pd.DataFrame
-        DataFrame dengan satu baris per IP dan kolom-kolom fitur.
+    Setiap IP direpresentasikan sebagai satu baris fitur yang merangkum
+    seluruh perilakunya. 
+    - error_rate dan unique_endpoint_ratio menggunakan nilai agregat global
+      agar tahan terhadap spike kecil yang biasa terjadi pada user normal.
+    - request_per_second menggunakan peak 1-minute bin agar terhindar 
+      dari dilusi waktu saat memproses rentang log yang panjang.
     """
     if not log_entries:
         return pd.DataFrame()
 
     df = pd.DataFrame(log_entries)
-    df = df.sort_values("timestamp")
+    df["timestamp"] = pd.to_datetime(df["timestamp"], utc=True)
 
-    grouped = []
+    # Deteksi IoC di URL atau Suspicious UA
+    df["has_ioc"] = df["url"].fillna("").astype(str).str.contains(IOC_REGEX)
+    df["has_susp_ua"] = df["user_agent"].fillna("").astype(str).str.contains(SUSPICIOUS_UA_REGEX)
 
-    for ip, group in df.groupby("ip"):
-        request_count = len(group)
+    # 1. Global aggregates per IP
+    ip_stats = df.groupby("ip").agg(
+        request_count=("url", "size"),
+        unique_url_count=("url", "nunique"),
+        error_count=("status", lambda x: (x >= 400).sum()),
+        avg_response_size=("size", "mean"),
+        response_size_std=("size", lambda x: x.std(ddof=0)),
+        avg_url_length=("url_length", "mean"),
+        is_api_user_agent=("user_agent", lambda x: int(x.fillna("").str.contains(API_UA_PATTERN, case=False, regex=True).any())),
+        has_ioc=("has_ioc", "max"),
+        has_susp_ua=("has_susp_ua", "max")
+    )
 
-        # --- Error metrics ---
-        error_count = int((group["status"] >= 400).sum())
-        error_rate = error_count / request_count  # proporsi, bukan absolut
+    # Hitung error rate dan unique ratio secara global (seperti code asli yang dapet 90%)
+    ip_stats["error_rate"] = ip_stats["error_count"] / ip_stats["request_count"]
+    ip_stats["unique_endpoint_ratio"] = ip_stats["unique_url_count"] / ip_stats["request_count"]
 
-        # --- Response size metrics ---
-        # std=0 dengan ddof=0 agar tidak NaN saat hanya 1 request
-        avg_response_size = float(group["size"].mean())
-        response_size_std = float(group["size"].std(ddof=0))
+    # 2. Peak RPS feature (1-minute bin)
+    df_ts = df.set_index("timestamp")
+    
+    bin_stats = df_ts.groupby([pd.Grouper(freq="1min"), "ip"]).agg(
+        req_count=("url", "size")
+    ).reset_index()
 
-        # --- URL characteristics ---
-        avg_url_length = float(group["url_length"].mean())
+    # Cari peak requests per menit untuk menghindari dilusi waktu
+    max_req_stats = bin_stats.groupby("ip").agg(
+        max_req_1m=("req_count", "max")
+    )
 
-        # --- Request rate ---
-        time_diff = (
-            group["timestamp"].max() - group["timestamp"].min()
-        ).total_seconds()
-        # Jika semua request dalam waktu bersamaan (time_diff=0),
-        # gunakan request_count sebagai proxy burst rate
-        if time_diff == 0:
-            request_per_second = float(request_count)
-        else:
-            request_per_second = request_count / time_diff
+    # 3. Gabungkan
+    result = ip_stats.join(max_req_stats).reset_index()
 
-        # --- Endpoint diversity ---
-        unique_url_count = int(group["url"].nunique())
-        # Rasio: seberapa besar proporsi endpoint unik dari total request
-        # Nilai tinggi (mendekati 1.0) mengindikasikan eksplorasi/scanning
-        unique_endpoint_ratio = unique_url_count / request_count
+    # 4. Format sesuai ekspektasi model
+    result["error_rate"] = result["error_rate"].round(4)
+    result["unique_endpoint_ratio"] = result["unique_endpoint_ratio"].round(4)
+    result["request_per_second"] = (result["max_req_1m"] / 60.0).round(4)
 
-        # --- User agent context (tidak masuk model, hanya metadata) ---
-        is_api_user_agent = int(
-            group["user_agent"]
-            .str.contains(API_UA_PATTERN, case=False, regex=True)
-            .any()
-        )
+    result["avg_response_size"] = result["avg_response_size"].round(2)
+    result["response_size_std"] = result["response_size_std"].round(2)
+    result["avg_url_length"] = result["avg_url_length"].round(2)
 
-        grouped.append({
-            "ip": ip,
-            # Metadata (tidak masuk model)
-            "request_count": request_count,
-            "error_count": error_count,
-            "is_api_user_agent": is_api_user_agent,
-            # Fitur model
-            "error_rate": round(error_rate, 4),
-            "avg_response_size": round(avg_response_size, 2),
-            "response_size_std": round(response_size_std, 2),
-            "avg_url_length": round(avg_url_length, 2),
-            "request_per_second": round(request_per_second, 4),
-            "unique_endpoint_ratio": round(unique_endpoint_ratio, 4),
-        })
+    # Drop kolom sementara
+    result = result.drop(columns=["unique_url_count", "max_req_1m"])
 
-    result = pd.DataFrame(grouped)
     logger.info("Feature engineering complete: %d IPs extracted", len(result))
     return result
 
 
+# ============================================================
+# DETEKSI PER-REQUEST (seperti paper Chua et al. 2024) Untuk perbandingan
+# ============================================================
+
+REQUEST_FEATURE_COLS = [
+    "url_length",
+    "response_size_kb",
+    "ua_length",
+    "has_ioc",
+    "has_suspicious_ua",
+    "hour_sin",
+    "hour_cos",
+    "method_get",
+    "method_post",
+    "status_2xx",
+    "status_3xx",
+    "status_4xx",
+    "status_5xx",
+    "uri_log_freq",
+    "ua_log_freq",
+    "uri_length_ratio",
+]
+
+
+def _compute_global_frequencies(df: pd.DataFrame) -> tuple:
+    uri_freq = df.groupby("url")["ip"].transform("count")
+    ua_freq = df.groupby("user_agent")["ip"].transform("count")
+    return uri_freq, ua_freq
+
+
+def feature_engineering_request_level(log_entries: list[dict]) -> pd.DataFrame:
+    """Fitur per-request. Setiap baris = 1 sampel (mirip paper Chua et al. 2024)."""
+    if not log_entries:
+        return pd.DataFrame()
+
+    df = pd.DataFrame(log_entries)
+    result = df[["ip", "url", "user_agent"]].copy()
+
+    uri_freq, ua_freq = _compute_global_frequencies(df)
+    result["uri_log_freq"] = np.log1p(uri_freq.values)
+    result["ua_log_freq"] = np.log1p(ua_freq.values)
+
+    result["url_length"] = df["url_length"].values
+    result["ua_length"] = df["user_agent"].str.len().values
+    mean_ul = df["url_length"].mean() + 1
+    result["uri_length_ratio"] = df["url_length"] / mean_ul
+
+    result["response_size_kb"] = (df["size"] / 1024).values
+    result["has_ioc"] = df["url"].apply(_detect_ioc).astype(int)
+    result["has_suspicious_ua"] = df["user_agent"].apply(_is_suspicious_ua).astype(int)
+
+    s = df["status"]
+    result["status_2xx"] = ((s >= 200) & (s < 300)).astype(int)
+    result["status_3xx"] = ((s >= 300) & (s < 400)).astype(int)
+    result["status_4xx"] = ((s >= 400) & (s < 500)).astype(int)
+    result["status_5xx"] = (s >= 500).astype(int)
+
+    m = df["method"].str.upper()
+    result["method_get"] = (m == "GET").astype(int)
+    result["method_post"] = (m == "POST").astype(int)
+
+    h = df["hour"].values
+    result["hour_sin"] = np.sin(2 * np.pi * h / 24)
+    result["hour_cos"] = np.cos(2 * np.pi * h / 24)
+
+    logger.info(
+        "Request-level features: %d entries, %d cols", len(result), len(result.columns)
+    )
+    return result
+
+
+def detect_anomalies_request_level(
+    request_features: pd.DataFrame,
+    contamination: float = 0.03,
+    n_estimators: int = 200,
+    max_samples: float = 0.25,
+) -> pd.DataFrame:
+    """IF per-request (parameter sesuai paper Chua et al. 2024)."""
+    if request_features.empty:
+        return request_features
+
+    X = request_features[REQUEST_FEATURE_COLS].copy()
+    scaler = RobustScaler()
+    X_scaled = scaler.fit_transform(X)
+
+    model = IsolationForest(
+        n_estimators=n_estimators,
+        contamination=contamination,
+        max_samples=max_samples,
+        random_state=42,
+    )
+    model.fit(X_scaled)
+
+    raw_scores = model.decision_function(X_scaled)
+    predictions = model.predict(X_scaled)
+
+    result = request_features.copy()
+    result["req_anomaly_raw"] = raw_scores
+    result["req_anomaly"] = predictions
+
+    anom = int((predictions == -1).sum())
+    logger.info(
+        "Request-level IF: %d/%d anomalous (%.2f%%)",
+        anom,
+        len(result),
+        100 * anom / len(result),
+    )
+    return result
+
+
+# ============================================================
 def _adjust_scores_for_known_clients(
     features: pd.DataFrame,
     scores: np.ndarray,

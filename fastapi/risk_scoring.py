@@ -4,7 +4,7 @@ Risk scoring system for anomaly detection results.
 Menggabungkan model-based anomaly score dari Isolation Forest dengan
 rule-based behavior scoring untuk menghasilkan risk score final (0-100).
 
-Pendekatan Hybrid (Model + Rules):
+Pendekatan Hybrid (Model + Rules + Cascade Boost):
 Isolation Forest menghasilkan anomaly score berbasis distribusi data
 (unsupervised), namun tidak mengetahui konteks domain seperti
 "burst traffic > X req/s adalah berbahaya". Rule-based scoring
@@ -12,6 +12,16 @@ melengkapi kelemahan ini dengan pengetahuan domain eksplisit.
 Pendekatan hybrid ini umum digunakan dalam sistem IDS/SIEM seperti
 yang dijelaskan pada Patcha & Park (2007), "An overview of anomaly
 detection techniques".
+
+Alur deteksi:
+  1. Isolation Forest → anomaly_score (-1/1)
+  2. Model risk score (min-max normalisasi anomaly_score ke 0-100)
+  3. Behavior risk score (rules: burst, error rate, endpoint, volume)
+  4. Final risk score = (60% model) + (40% behavior)
+  5. Cascade boost: jika behavior_risk >= 20 (ada bukti kuat dari rules)
+     tapi final_risk < 40, naikkan ke minimal MEDIUM.
+     Ini memastikan IP dengan error_rate tinggi atau burst tidak
+     terlewat hanya karena model_risk_score rendah.
 
 Formula Final Risk Score:
     risk_score = (W_model × model_risk) + (W_behavior × behavior_risk)
@@ -44,10 +54,11 @@ THRESHOLD_HIGH = 70
 THRESHOLD_MEDIUM = 40
 
 # Batas rule behavior (dapat dikonfigurasi sesuai karakteristik server)
-BURST_RPS_THRESHOLD = 5.0       # req/s di atas ini dianggap burst
+BURST_RPS_THRESHOLD = 5.0  # req/s di atas ini dianggap burst
 HIGH_ERROR_RATE_THRESHOLD = 0.3  # 30% error rate
 HIGH_ENDPOINT_RATIO_THRESHOLD = 0.7  # 70% unique endpoint ratio
-MIN_REQUESTS_FOR_RATIO_RULE = 25    # minimum request agar ratio rule bermakna
+MIN_REQUESTS_FOR_RATIO_RULE = 25  # minimum request agar ratio rule bermakna
+MIN_REQUESTS_FOR_ERROR_RULE = 10  # minimum request agar error rule tidak noise
 
 
 def _calculate_behavior_score(row: pd.Series) -> tuple[int, list[str]]:
@@ -58,18 +69,19 @@ def _calculate_behavior_score(row: pd.Series) -> tuple[int, list[str]]:
     di-clamp pada 100 sebelum dikombinasikan ke formula akhir.
 
     Rules dan justifikasinya:
-    +---------+--------------------------------+-------+-----------------------------+
-    | Rule    | Kondisi                        | Poin  | Justifikasi                 |
-    +---------+--------------------------------+-------+-----------------------------+
-    | Burst   | req/s > BURST_RPS_THRESHOLD    | +35   | DDoS / rate-based attack    |
-    | Error   | error_rate > 0.3               | +30   | Scanning / fuzzing aktif    |
-    | Endpoint| ratio > 0.7 DAN req >= 10      | +25   | Crawling / path enumeration |
-    | Volume  | request_count > 200            | +10   | Akumulasi traffic abnormal  |
-    +---------+--------------------------------+-------+-----------------------------+
+    +---------+----------------------------------------+-------+-----------------------------+
+    | Rule    | Kondisi                                | Poin  | Justifikasi                 |
+    +---------+----------------------------------------+-------+-----------------------------+
+    | Burst   | req/s > 5.0 (BURST_RPS_THRESHOLD)      | +35   | DDoS / rate-based attack    |
+    | Error   | error_rate > 0.3 AND req >= 10         | +30   | Scanning / fuzzing aktif    |
+    | Endpoint| ratio > 0.7 AND req >= 25              | +25   | Crawling / path enumeration |
+    | Volume  | req_count > 500 AND req/s > 1          | +10   | Volume + intensitas abnormal|
+    +---------+----------------------------------------+-------+-----------------------------+
 
-    Catatan: Rule endpoint disyaratkan minimum 10 request agar
+    Catatan: Rule endpoint disyaratkan minimum 25 request agar
     tidak memflagging IP baru yang kebetulan akses 2 endpoint berbeda
-    (ratio=1.0 hanya dari 2 request).
+    (ratio=1.0 hanya dari 2 request). Rule error disyaratkan minimum
+    10 request agar IP dengan 1-2 request error tidak kena false positive.
 
     Parameters
     ----------
@@ -96,10 +108,17 @@ def _calculate_behavior_score(row: pd.Series) -> tuple[int, list[str]]:
     # Rule 2: High error rate
     # Error rate >30% mengindikasikan scanning endpoint yang tidak valid
     # atau brute-force yang menghasilkan banyak 401/403/404
-    if row["error_rate"] > HIGH_ERROR_RATE_THRESHOLD:
+    # Minimum request (MIN_REQUESTS_FOR_ERROR_RULE) diperlukan karena IP
+    # dengan 1-2 request saja dan salah satunya error akan memiliki error_rate
+    # tinggi secara kebetulan, bukan karena aktivitas mencurigakan.
+    if (
+        row["error_rate"] > HIGH_ERROR_RATE_THRESHOLD
+        and row["request_count"] >= MIN_REQUESTS_FOR_ERROR_RULE
+    ):
         behavior_risk += 30
         reasons.append(
-            f"High error rate ({row['error_rate']:.1%} > {HIGH_ERROR_RATE_THRESHOLD:.0%})"
+            f"High error rate ({row['error_rate']:.1%} > {HIGH_ERROR_RATE_THRESHOLD:.0%}, "
+            f"n={int(row['request_count'])})"
         )
 
     # Rule 3: High endpoint variation dengan minimum request yang cukup
@@ -126,6 +145,16 @@ def _calculate_behavior_score(row: pd.Series) -> tuple[int, list[str]]:
             f"({int(row['request_count'])} requests, "
             f"{row['request_per_second']:.2f} req/s)"
         )
+
+    # Rule 5: IoC Detection (SQLi, XSS, Path Traversal, Code Injection)
+    if row.get("has_ioc", False):
+        behavior_risk += 60  # Poin tinggi karena merupakan indikator serangan eksplist
+        reasons.append("IoC detected (SQLi/XSS/Path Traversal/etc)")
+
+    # Rule 6: Suspicious User-Agent (Scanner / Bot Tools)
+    if row.get("has_susp_ua", False):
+        behavior_risk += 20
+        reasons.append("Suspicious User-Agent (Scanner/Bot)")
 
     # Clamp ke 0-100 sebelum dikombinasikan
     behavior_risk = min(100, behavior_risk)
@@ -194,9 +223,16 @@ def calculate_risk(result: pd.DataFrame) -> pd.DataFrame:
 
         # Formula hybrid: 60% model + 40% behavior
         final_risk = (
-            WEIGHT_MODEL * row["model_risk_score"]
-            + WEIGHT_BEHAVIOR * behavior_risk
+            WEIGHT_MODEL * row["model_risk_score"] + WEIGHT_BEHAVIOR * behavior_risk
         )
+
+        # BOOST: Jika behavior rules menunjukkan aktivitas mencurigakan
+        # (behavior_risk >= 20), naikkan risk score minimal ke MEDIUM.
+        # Ini mencegah IP anomali (error rate tinggi, burst, scanner)
+        # lolos hanya karena model_risk_score rendah.
+        if behavior_risk >= 20 and final_risk < THRESHOLD_MEDIUM:
+            final_risk = THRESHOLD_MEDIUM + (final_risk * 0.1)
+
         final_risk = min(100.0, round(final_risk, 2))
 
         # Kategorisasi
@@ -217,12 +253,6 @@ def calculate_risk(result: pd.DataFrame) -> pd.DataFrame:
     result["risk_score"] = risk_scores
     result["risk_category"] = risk_categories
     result["risk_reasons"] = risk_reasons_list
-    print("model_risk_score:")
-    print(result["model_risk_score"])
-    print("behavior_risk_score:")
-    print(result["behavior_risk_score"])
-    print("risk_score:")
-    print(result["risk_score"])
 
     high_count = sum(1 for c in risk_categories if c == "HIGH")
     medium_count = sum(1 for c in risk_categories if c == "MEDIUM")
