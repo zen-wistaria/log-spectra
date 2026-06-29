@@ -176,69 +176,74 @@ export async function POST(request: Request) {
     /* Collect current report IPs for cleanup */
     // const currentIps = body.results.map((r) => r.ip);
 
-    await prisma.$transaction(async (tx) => {
-      /* Upsert each result — replace (not increment) since agent
-       now sends analysis of the full accumulated buffer */
-      for (const result of body.results) {
-        const riskReasons = Array.isArray(result.risk_reasons)
-          ? result.risk_reasons
-          : [];
+    await prisma.$transaction(
+      async (tx) => {
+        /* Upsert each result — replace (not increment) since agent
+         now sends analysis of the full accumulated buffer */
+        for (const result of body.results) {
+          const riskReasons = Array.isArray(result.risk_reasons)
+            ? result.risk_reasons
+            : [];
 
-        const data = {
-          request_count: result.request_count,
-          error_count: result.error_count ?? 0,
-          request_per_second: result.request_per_second ?? 0,
-          unique_endpoint_ratio: result.unique_endpoint_ratio ?? 0,
-          error_rate: result.error_rate ?? 0,
-          avg_response_size: result.avg_response_size ?? 0,
-          response_size_std: result.response_size_std ?? 0,
-          avg_url_length: result.avg_url_length ?? 0,
-          has_ioc: result.has_ioc ?? false,
-          has_susp_ua: result.has_susp_ua ?? false,
-          model_risk_score: result.model_risk_score ?? 0,
-          behavior_risk_score: result.behavior_risk_score ?? 0,
-          risk_score: result.risk_score ?? 0,
-          risk_category: result.risk_category ?? "LOW",
-          risk_reasons: riskReasons,
-        };
+          const data = {
+            request_count: result.request_count,
+            error_count: result.error_count ?? 0,
+            request_per_second: result.request_per_second ?? 0,
+            unique_endpoint_ratio: result.unique_endpoint_ratio ?? 0,
+            error_rate: result.error_rate ?? 0,
+            avg_response_size: result.avg_response_size ?? 0,
+            response_size_std: result.response_size_std ?? 0,
+            avg_url_length: result.avg_url_length ?? 0,
+            has_ioc: result.has_ioc ?? false,
+            has_susp_ua: result.has_susp_ua ?? false,
+            model_risk_score: result.model_risk_score ?? 0,
+            behavior_risk_score: result.behavior_risk_score ?? 0,
+            risk_score: result.risk_score ?? 0,
+            risk_category: result.risk_category ?? "LOW",
+            risk_reasons: riskReasons,
+          };
 
-        await tx.anomalyLogs.upsert({
-          where: {
-            agent_id_ip: {
+          await tx.anomalyLogs.upsert({
+            where: {
+              agent_id_ip: {
+                agent_id: agentId,
+                ip: result.ip,
+              },
+            },
+            create: {
               agent_id: agentId,
               ip: result.ip,
+              ...data,
             },
+            update: data,
+          });
+        }
+
+        /* Remove stale IPs no longer present in the latest report */
+        // await tx.anomalyLog.deleteMany({
+        //   where: {
+        //     agent_id: agentId,
+        //     ip: { notIn: currentIps },
+        //   },
+        // });
+
+        /* Update agent metadata */
+        await tx.agents.update({
+          where: { id: agentId },
+          data: {
+            status: "online",
+            last_seen: new Date(),
+            version: body.version,
+            os: body.os,
+            hostname: body.hostname,
+            ip_address: body.ip_address,
           },
-          create: {
-            agent_id: agentId,
-            ip: result.ip,
-            ...data,
-          },
-          update: data,
         });
-      }
-
-      /* Remove stale IPs no longer present in the latest report */
-      // await tx.anomalyLog.deleteMany({
-      //   where: {
-      //     agent_id: agentId,
-      //     ip: { notIn: currentIps },
-      //   },
-      // });
-
-      /* Update agent metadata */
-      await tx.agents.update({
-        where: { id: agentId },
-        data: {
-          status: "online",
-          last_seen: new Date(),
-          version: body.version,
-          os: body.os,
-          hostname: body.hostname,
-          ip_address: body.ip_address,
-        },
-      });
-    });
+      },
+      {
+        timeout: 60000, // 60 seconds timeout for large payloads
+      },
+    );
 
     return NextResponse.json({ status: "ok" });
   } catch (error) {
