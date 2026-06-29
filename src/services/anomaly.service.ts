@@ -10,6 +10,7 @@ export interface GetAnomaliesParams {
   agentId?: string;
   ip?: string;
   markedAsResolved?: boolean;
+  category?: string;
 }
 
 // biome-ignore lint/complexity/noStaticOnlyClass: using for agent services
@@ -22,6 +23,7 @@ export class AnomalyService {
     markedAsResolved = false,
     agentId,
     ip,
+    category,
   }: GetAnomaliesParams) {
     const orderBy: Prisma.AnomalyLogsOrderByWithRelationInput[] = [];
     if (sort) {
@@ -64,6 +66,11 @@ export class AnomalyService {
     if (ip) {
       where.push({
         ip,
+      });
+    }
+    if (category) {
+      where.push({
+        risk_category: { equals: category, mode: "insensitive" },
       });
     }
     if (search) {
@@ -117,23 +124,37 @@ export class AnomalyService {
     agentId?: string,
     markedAsResolved: boolean = false,
     ip?: string,
+    category?: string,
+    search?: string,
   ) {
-    const where: Prisma.AnomalyLogsWhereInput = {};
+    const where: Prisma.AnomalyLogsWhereInput[] = [];
 
     if (agentId) {
-      where.agent_id = agentId;
+      where.push({ agent_id: agentId });
     }
     if (ip) {
-      where.ip = ip;
+      where.push({ ip });
+    }
+    if (category) {
+      where.push({ risk_category: { equals: category, mode: "insensitive" } });
+    }
+    if (search) {
+      where.push({
+        OR: [
+          { ip: { contains: search, mode: "insensitive" } },
+          { risk_category: { contains: search, mode: "insensitive" } },
+          { risk_reasons: { array_contains: search, mode: "insensitive" } },
+        ],
+      });
     }
     if (markedAsResolved) {
-      where.resolved_mark = true;
+      where.push({ resolved_mark: true });
     } else {
-      where.resolved_mark = false;
+      where.push({ resolved_mark: false });
     }
 
     return await prisma.anomalyLogs.count({
-      where,
+      where: { AND: where },
     });
   }
 
