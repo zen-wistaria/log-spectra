@@ -209,6 +209,82 @@ export const getColumns = (): ColumnDef<IColumns>[] => [
     enableHiding: false,
   },
   {
+    id: "error_rate",
+    accessorKey: "error_rate",
+    meta: {
+      label: "Error Rate",
+    },
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} title="Error Rate" />
+    ),
+    cell: ({ row }) => <div className="text-xs">{row.original.error_rate}</div>,
+  },
+  {
+    id: "avg_response_size",
+    accessorKey: "avg_response_size",
+    meta: {
+      label: "Avg Resp Size",
+    },
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} title="Avg Resp Size" />
+    ),
+    cell: ({ row }) => (
+      <div className="text-xs">{row.original.avg_response_size}</div>
+    ),
+  },
+  {
+    id: "response_size_std",
+    accessorKey: "response_size_std",
+    meta: {
+      label: "Resp Std",
+    },
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} title="Resp Std" />
+    ),
+    cell: ({ row }) => (
+      <div className="text-xs">{row.original.response_size_std}</div>
+    ),
+  },
+  {
+    id: "avg_url_length",
+    accessorKey: "avg_url_length",
+    meta: {
+      label: "Avg URL Len",
+    },
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} title="Avg URL Len" />
+    ),
+    cell: ({ row }) => (
+      <div className="text-xs">{row.original.avg_url_length}</div>
+    ),
+  },
+  {
+    id: "model_risk_score",
+    accessorKey: "model_risk_score",
+    meta: {
+      label: "Model Score",
+    },
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} title="Model Score" />
+    ),
+    cell: ({ row }) => (
+      <div className="text-xs">{row.original.model_risk_score}</div>
+    ),
+  },
+  {
+    id: "behavior_risk_score",
+    accessorKey: "behavior_risk_score",
+    meta: {
+      label: "Behavior Score",
+    },
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} title="Behavior Score" />
+    ),
+    cell: ({ row }) => (
+      <div className="text-xs">{row.original.behavior_risk_score}</div>
+    ),
+  },
+  {
     id: "risk_score",
     accessorKey: "risk_score",
     meta: {

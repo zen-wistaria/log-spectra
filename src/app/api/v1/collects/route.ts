@@ -9,6 +9,14 @@ interface AnalysisResult {
   error_count: number;
   request_per_second: number;
   unique_endpoint_ratio: number;
+  error_rate: number;
+  avg_response_size: number;
+  response_size_std: number;
+  avg_url_length: number;
+  has_ioc: boolean;
+  has_susp_ua: boolean;
+  model_risk_score: number;
+  behavior_risk_score: number;
   risk_score: number;
   risk_category: string;
   risk_reasons: string[];
@@ -181,6 +189,14 @@ export async function POST(request: Request) {
           error_count: result.error_count ?? 0,
           request_per_second: result.request_per_second ?? 0,
           unique_endpoint_ratio: result.unique_endpoint_ratio ?? 0,
+          error_rate: result.error_rate ?? 0,
+          avg_response_size: result.avg_response_size ?? 0,
+          response_size_std: result.response_size_std ?? 0,
+          avg_url_length: result.avg_url_length ?? 0,
+          has_ioc: result.has_ioc ?? false,
+          has_susp_ua: result.has_susp_ua ?? false,
+          model_risk_score: result.model_risk_score ?? 0,
+          behavior_risk_score: result.behavior_risk_score ?? 0,
           risk_score: result.risk_score ?? 0,
           risk_category: result.risk_category ?? "LOW",
           risk_reasons: riskReasons,

@@ -319,7 +319,7 @@ export default async function IpDetailsPage({
                   </div>
 
                   {/* Stats Grid */}
-                  <div className="grid grid-cols-2 gap-y-4 gap-x-2 bg-muted/40 p-3 rounded-lg border">
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-y-4 gap-x-2 bg-muted/40 p-3 rounded-lg border">
                     <div>
                       <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground block mb-0.5">
                         Requests
@@ -344,10 +344,74 @@ export default async function IpDetailsPage({
                     </div>
                     <div>
                       <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground block mb-0.5">
-                        Unique Endpoint
+                        Endpoint Ratio
                       </span>
                       <div className="font-mono text-sm">
                         {log.unique_endpoint_ratio}
+                      </div>
+                    </div>
+                    <div>
+                      <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground block mb-0.5">
+                        Error Rate
+                      </span>
+                      <div className="font-mono text-sm">{log.error_rate}</div>
+                    </div>
+                    <div>
+                      <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground block mb-0.5">
+                        Avg Resp Size
+                      </span>
+                      <div className="font-mono text-sm">
+                        {log.avg_response_size}
+                      </div>
+                    </div>
+                    <div>
+                      <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground block mb-0.5">
+                        Resp Std
+                      </span>
+                      <div className="font-mono text-sm">
+                        {log.response_size_std}
+                      </div>
+                    </div>
+                    <div>
+                      <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground block mb-0.5">
+                        Avg URL Len
+                      </span>
+                      <div className="font-mono text-sm">
+                        {log.avg_url_length}
+                      </div>
+                    </div>
+                    <div>
+                      <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground block mb-0.5">
+                        Model Score
+                      </span>
+                      <div className="font-mono text-sm">
+                        {log.model_risk_score}
+                      </div>
+                    </div>
+                    <div>
+                      <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground block mb-0.5">
+                        Behavior Score
+                      </span>
+                      <div className="font-mono text-sm">
+                        {log.behavior_risk_score}
+                      </div>
+                    </div>
+                    <div className="col-span-2 flex gap-4">
+                      <div>
+                        <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground block mb-0.5">
+                          IOC Detected
+                        </span>
+                        <div className="font-mono text-sm">
+                          {log.has_ioc ? "Yes" : "No"}
+                        </div>
+                      </div>
+                      <div>
+                        <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground block mb-0.5">
+                          Suspicious UA
+                        </span>
+                        <div className="font-mono text-sm">
+                          {log.has_susp_ua ? "Yes" : "No"}
+                        </div>
                       </div>
                     </div>
                   </div>
