@@ -13,7 +13,7 @@ import {
   type VisibilityState,
 } from "@tanstack/react-table";
 import { Plus, Search } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Table,
@@ -75,7 +75,19 @@ export function DataTable<TData, TValue>({
   createButtonText = "Create New",
   rowClassName,
 }: DataTableProps<TData, TValue>) {
-  const [sorting, setSorting] = useState<SortingState>(defaultSorting);
+  const sorting = useMemo<SortingState>(() => {
+    if (params.sort) {
+      return params.sort.split(",").map((s) => {
+        const desc = s.startsWith("-");
+        return {
+          id: desc ? s.slice(1) : s,
+          desc,
+        };
+      });
+    }
+    return defaultSorting;
+  }, [params.sort, defaultSorting]);
+
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
   const [columnVisibility, setColumnVisibility] =
     useState<VisibilityState>(defaultHiddenColumns);
@@ -83,10 +95,28 @@ export function DataTable<TData, TValue>({
 
   const debouncedSearch = useDebounce(searchValue, 500);
 
+  const handleSortingChange = (
+    updaterOrValue: SortingState | ((old: SortingState) => SortingState),
+  ) => {
+    const newSorting =
+      typeof updaterOrValue === "function"
+        ? updaterOrValue(sorting)
+        : updaterOrValue;
+
+    const sortString = newSorting
+      .map((sort) => `${sort.desc ? "-" : ""}${sort.id}`)
+      .join(",");
+
+    onParamsChange({
+      ...params,
+      sort: sortString,
+    });
+  };
+
   const table = useReactTable({
     data,
     columns,
-    onSortingChange: setSorting,
+    onSortingChange: handleSortingChange,
     onColumnFiltersChange: setColumnFilters,
     getCoreRowModel: getCoreRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
@@ -113,25 +143,19 @@ export function DataTable<TData, TValue>({
     }
   }, [debouncedSearch, params, onParamsChange]);
 
+  // Sync default sorting to params on mount if empty
+  // biome-ignore lint/correctness/useExhaustiveDependencies: ...
   useEffect(() => {
-    if (sorting.length > 0) {
-      const sortString = sorting
+    if (!params.sort && defaultSorting && defaultSorting.length > 0) {
+      const sortString = defaultSorting
         .map((sort) => `${sort.desc ? "-" : ""}${sort.id}`)
         .join(",");
-
-      if (sortString !== params.sort) {
-        onParamsChange({
-          ...params,
-          sort: sortString,
-        });
-      }
-    } else if (params.sort) {
       onParamsChange({
         ...params,
-        sort: "",
+        sort: sortString,
       });
     }
-  }, [sorting, params, onParamsChange]);
+  }, [params.sort]);
 
   const handlePageChange = (page: number) => {
     onParamsChange({
