@@ -13,6 +13,13 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { useAsyncSelect } from "@/hooks/use-async-select";
 import { useDebounce } from "@/hooks/use-debounce";
 import { useAgents } from "@/query/agent.query";
@@ -35,12 +42,16 @@ export function LogsTable() {
   const [search, setSearch] = useQueryState("search", { defaultValue: "" });
   const [sort, setSort] = useQueryState("sort", { defaultValue: "" });
   const [agentId, setAgentId] = useQueryState("agentId", { defaultValue: "" });
+  const [category, setCategory] = useQueryState("category", {
+    defaultValue: "",
+  });
 
   const handleParamsChange = (newParams: GetAnomaliesParams) => {
     setPage(newParams.page);
     setLimit(newParams.limit);
     setSearch(newParams.search);
     setSort(newParams.sort);
+    setCategory(newParams.category || "");
   };
 
   const tableParams: GetAnomaliesParams = {
@@ -49,6 +60,7 @@ export function LogsTable() {
     search,
     sort,
     agentId,
+    category,
   };
   const { data, isPending } = useResolvedAnomalies(tableParams);
 
@@ -81,7 +93,9 @@ export function LogsTable() {
           <Card>
             <CardHeader className="pb-2">
               <CardDescription>Total Resolved IP</CardDescription>
-              <CardTitle className="text-3xl">{data.total}</CardTitle>
+              <CardTitle className="text-3xl">
+                {data.highCount + data.mediumCount + data.lowCount}
+              </CardTitle>
             </CardHeader>
           </Card>
           <Card className="border-red-500/30">
@@ -121,23 +135,45 @@ export function LogsTable() {
       )}
       <Card>
         <CardContent>
-          <div className="max-w-sm">
-            <AsyncSelect
-              open={agentSelect.open}
-              setOpen={agentSelect.setOpen}
-              selected={agentSelect.selected}
-              search={agentSearch}
-              setSearch={setAgentSearch}
-              isLoading={agentSelect.isLoading}
-              items={agentSelect.items}
-              placeholderEmptySelected="Select Agent"
-              placeholderSearch="Try typing your keyboard for search..."
-              getLabel={(item) => item.name}
-              onSelect={(item) => {
-                agentSelect.handleSelect(item);
-                setAgentId(item?.id ?? "");
-              }}
-            />
+          <div className="flex flex-col sm:flex-row gap-4 mb-4">
+            <div className="w-full max-w-sm">
+              <AsyncSelect
+                open={agentSelect.open}
+                setOpen={agentSelect.setOpen}
+                selected={agentSelect.selected}
+                search={agentSearch}
+                setSearch={setAgentSearch}
+                isLoading={agentSelect.isLoading}
+                items={agentSelect.items}
+                placeholderEmptySelected="Select Agent"
+                placeholderSearch="Try typing your keyboard for search..."
+                getLabel={(item) => item.name}
+                onSelect={(item) => {
+                  agentSelect.handleSelect(item);
+                  setAgentId(item?.id ?? "");
+                  setPage(1);
+                }}
+              />
+            </div>
+            <div className="w-full sm:max-w-[200px]">
+              <Select
+                value={category || "all"}
+                onValueChange={(val) => {
+                  setCategory(val === "all" ? "" : val);
+                  setPage(1);
+                }}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="All Categories" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Categories</SelectItem>
+                  <SelectItem value="HIGH">High Risk</SelectItem>
+                  <SelectItem value="MEDIUM">Medium Risk</SelectItem>
+                  <SelectItem value="LOW">Low Risk</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
           <DataTable
             columns={columns}
