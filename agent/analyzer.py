@@ -56,13 +56,13 @@ IOC_REGEX = re.compile("|".join(IOC_PATTERNS), re.IGNORECASE)
 
 # Suspicious User-Agent patterns (headless, empty, or unusual)
 SUSPICIOUS_UA_PATTERNS = [
-    r"^$",
-    r"^[\s\-]*$",
-    r"^[A-Z]+/\d+\.\d+",
-    r"curl/\d+",
-    r"Wget/\d+",
-    r"(Go-http-client|okhttp|axios|aiohttp|httpx|requests)",
-    r"(masscan|nmap|zgrab|Nikto|sqlmap|acunetix)",
+    # r"^$",
+    # r"^[\s\-]*$",
+    # r"^[A-Z]+/\d+\.\d+",
+    # r"curl/\d+",
+    # r"Wget/\d+",
+    # r"(Go-http-client|okhttp|axios|aiohttp|httpx|requests)",
+    r"(masscan|nmap|zgrab|Nikto|sqlmap|acunetix|dirb|gobuster|hydra)",
 ]
 SUSPICIOUS_UA_REGEX = re.compile("|".join(SUSPICIOUS_UA_PATTERNS), re.IGNORECASE)
 
@@ -131,10 +131,10 @@ def feature_engineering(log_entries: list[dict]) -> pd.DataFrame:
     Ekstraksi fitur per IP address dari raw log entries.
 
     Setiap IP direpresentasikan sebagai satu baris fitur yang merangkum
-    seluruh perilakunya. 
+    seluruh perilakunya.
     - error_rate dan unique_endpoint_ratio menggunakan nilai agregat global
       agar tahan terhadap spike kecil yang biasa terjadi pada user normal.
-    - request_per_second menggunakan peak 1-minute bin agar terhindar 
+    - request_per_second menggunakan peak 1-minute bin agar terhindar
       dari dilusi waktu saat memproses rentang log yang panjang.
     """
     if not log_entries:
@@ -145,7 +145,9 @@ def feature_engineering(log_entries: list[dict]) -> pd.DataFrame:
 
     # Deteksi IoC di URL atau Suspicious UA
     df["has_ioc"] = df["url"].fillna("").astype(str).str.contains(IOC_REGEX)
-    df["has_susp_ua"] = df["user_agent"].fillna("").astype(str).str.contains(SUSPICIOUS_UA_REGEX)
+    df["has_susp_ua"] = (
+        df["user_agent"].fillna("").astype(str).str.contains(SUSPICIOUS_UA_REGEX)
+    )
 
     # 1. Global aggregates per IP
     ip_stats = df.groupby("ip").agg(
@@ -155,26 +157,33 @@ def feature_engineering(log_entries: list[dict]) -> pd.DataFrame:
         avg_response_size=("size", "mean"),
         response_size_std=("size", lambda x: x.std(ddof=0)),
         avg_url_length=("url_length", "mean"),
-        is_api_user_agent=("user_agent", lambda x: int(x.fillna("").str.contains(API_UA_PATTERN, case=False, regex=True).any())),
+        is_api_user_agent=(
+            "user_agent",
+            lambda x: int(
+                x.fillna("").str.contains(API_UA_PATTERN, case=False, regex=True).any()
+            ),
+        ),
         has_ioc=("has_ioc", "max"),
-        has_susp_ua=("has_susp_ua", "max")
+        has_susp_ua=("has_susp_ua", "max"),
     )
 
     # Hitung error rate dan unique ratio secara global (seperti code asli yang dapet 90%)
     ip_stats["error_rate"] = ip_stats["error_count"] / ip_stats["request_count"]
-    ip_stats["unique_endpoint_ratio"] = ip_stats["unique_url_count"] / ip_stats["request_count"]
+    ip_stats["unique_endpoint_ratio"] = (
+        ip_stats["unique_url_count"] / ip_stats["request_count"]
+    )
 
     # 2. Peak RPS feature (1-minute bin)
     df_ts = df.set_index("timestamp")
-    
-    bin_stats = df_ts.groupby([pd.Grouper(freq="1min"), "ip"]).agg(
-        req_count=("url", "size")
-    ).reset_index()
+
+    bin_stats = (
+        df_ts.groupby([pd.Grouper(freq="1min"), "ip"])
+        .agg(req_count=("url", "size"))
+        .reset_index()
+    )
 
     # Cari peak requests per menit untuk menghindari dilusi waktu
-    max_req_stats = bin_stats.groupby("ip").agg(
-        max_req_1m=("req_count", "max")
-    )
+    max_req_stats = bin_stats.groupby("ip").agg(max_req_1m=("req_count", "max"))
 
     # 3. Gabungkan
     result = ip_stats.join(max_req_stats).reset_index()

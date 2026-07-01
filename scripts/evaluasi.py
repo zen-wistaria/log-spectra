@@ -28,7 +28,7 @@ logging.basicConfig(level=logging.INFO, format="%(message)s")
 logger = logging.getLogger(__name__)
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-ACCESS_LOG = os.path.join(BASE_DIR, "datasheet", "full_60_day_access.log")
+ACCESS_LOG = os.path.join(BASE_DIR, "datasheet", "30_day_access.log")
 SAMPLE_SIZE = 600000
 RANDOM_SEED = 42
 
@@ -105,11 +105,17 @@ def filter_normal_entries(
         if reasons:
             filtered_ips.add(ip)
 
-    result = [e for e in entries if e["ip"] not in filtered_ips]
-    logger.info(
-        f"  Filter baseline: {len(filtered_ips)} IP asli terdeteksi sbg anomali & dibuang, "
-        f"{len(result)}/{len(entries)} entries tersisa sbg data BENAR-BENAR NORMAL"
-    )
+    # Selain membuang IP yang mencurigakan, kita juga buang baris log yang statusnya 301 atau >= 400
+    # agar dataset 'normal' benar-benar terlihat bersih.
+    result = [
+        e
+        for e in entries
+        if e["ip"] not in filtered_ips and e["status"] != 301 and e["status"] < 400
+    ]
+    # logger.info(
+    # f"  Filter baseline: {len(filtered_ips)} IP asli terdeteksi sbg anomali & dibuang, "
+    # f"{len(result)}/{len(entries)} entries tersisa sbg data BENAR-BENAR NORMAL"
+    # )
     return result
 
 
@@ -318,7 +324,7 @@ def generate_attacks(normal_entries):
     for i in range(6):
         ip = f"192.168.100.{10+i}"
         entries = []
-        for j in range(random.randint(30, 60)):
+        for j in range(random.randint(200, 400)):
             t = base + timedelta(seconds=j * 2 + random.randint(0, 3))
             url = random.choice(["/panel/login", "/api/auth/login", "/admin/login"])
             entries.append(
@@ -371,12 +377,17 @@ def generate_attacks(normal_entries):
                 )
         attacks[ip] = entries
 
-    # 8. DDoS Burst (8 IP) — rps >20, volume 200-400
+    # 8. DDoS Burst (8 IP) — rps >20, volume 1500-2000
     for i in range(8):
         ip = f"172.16.0.{30+i}"
         entries = []
+        # Mulai serangan tepat di detik 0 agar seluruh request masuk ke dalam 1 bin menit yang sama
+        ddos_start = base.replace(second=0, microsecond=0) + timedelta(
+            minutes=random.randint(1, 10)
+        )
         for j in range(random.randint(200, 400)):
-            t = base + timedelta(milliseconds=j * random.randint(40, 80))
+            # Random delay 10-25 ms agar total waktu (max 2000 * 25ms = 50 detik) tetap dalam 1 menit
+            t = ddos_start + timedelta(milliseconds=j * random.randint(1, 10))
             url = random.choice(
                 ["/", "/index.html", "/panel/dashboard", "/api/v1/data"]
             )
@@ -399,7 +410,7 @@ def generate_attacks(normal_entries):
     for i in range(6):
         ip = f"45.33.32.{150+i}"
         entries = []
-        for j in range(random.randint(20, 40)):
+        for j in range(random.randint(100, 400)):
             t = base + timedelta(
                 seconds=j * 2 if random.random() < 0.5 else random.randint(1, 60)
             )
@@ -454,9 +465,9 @@ def generate_attacks(normal_entries):
     #             )
     #     attacks[ip] = entries
 
-    logger.info(
-        f"  {sum(len(v) for v in attacks.values())} baris anomali dari {len(attacks)} IP"
-    )
+    # logger.info(
+    # f"  {sum(len(v) for v in attacks.values())} baris anomali dari {len(attacks)} IP"
+    # )
     return attacks
 
 
@@ -541,35 +552,38 @@ def calculate_risk_custom(
 # MAIN
 # ============================================================
 if __name__ == "__main__":
-    logger.info("=" * 60)
-    logger.info("EVALUASI FINAL — LOG SPECTRA")
-    logger.info("Sistem Deteksi Anomali Log Web Server")
-    logger.info("=" * 60)
+    logger.info("=" * 75)
+    logger.info("EVALUASI FINAL — LOG SPECTRA (ANOMALY DETECTION)".center(75))
+    logger.info("=" * 75)
 
     # ---------- DATASET ----------
-    logger.info(f"\n--- MEMBANGUN DATASET ---")
+    CLEAN_ACCESS_LOG = os.path.join(BASE_DIR, "datasheet", "clean_access.log")
 
-    raw_normal_entries = read_and_parse(ACCESS_LOG, SAMPLE_SIZE)
-    normal_entries = filter_normal_entries(
-        raw_normal_entries, rps_threshold=3.0, error_threshold=0.4
-    )
+    if os.path.exists(CLEAN_ACCESS_LOG):
+        logger.info(f"[INFO] Memuat data normal dari clean_access.log...")
+        normal_entries = read_and_parse(CLEAN_ACCESS_LOG, SAMPLE_SIZE)
+    else:
+        logger.info(f"[INFO] Memfilter raw data dan membuat clean_access.log...")
+        raw_normal_entries = read_and_parse(ACCESS_LOG, SAMPLE_SIZE)
+        normal_entries = filter_normal_entries(
+            raw_normal_entries, rps_threshold=3.0, error_threshold=0.7, min_requests=3
+        )
+        with open(CLEAN_ACCESS_LOG, "w", encoding="utf-8") as f:
+            for e in normal_entries:
+                ts = e["timestamp"].strftime("%d/%b/%Y:%H:%M:%S +0000")
+                f.write(
+                    f'{e["ip"]} - - [{ts}] "{e["method"]} {e["url"]} HTTP/1.1" {e["status"]} {e["size"]} "-" "{e["user_agent"]}"\n'
+                )
 
-    # Generate atau baca anomali sintetik dari file
     if os.path.exists(ANOMALI_LOG) and os.path.exists(ANOMALI_IPS_LOG):
-        logger.info(f"  Memuat anomali dari {ANOMALI_LOG}...")
         with open(ANOMALI_LOG, "r", encoding="utf-8", errors="replace") as f:
             attack_entries = [e for line in f if (e := parse_log_line(line.strip()))]
         with open(ANOMALI_IPS_LOG, "r") as f:
             attack_ips = set(f.read().strip().splitlines())
-        logger.info(
-            f"  {len(attack_entries)} baris anomali dari {len(attack_ips)} IP (dari file)"
-        )
     else:
-        logger.info(f"  Men-generate anomali sintetik...")
         attacks = generate_attacks(normal_entries)
         attack_ips = set(attacks.keys())
 
-        logger.info(f"  Menyimpan ke {ANOMALI_LOG}...")
         with open(ANOMALI_LOG, "w", encoding="utf-8") as f:
             for ip, entries in attacks.items():
                 for e in entries:
@@ -582,71 +596,49 @@ if __name__ == "__main__":
                 f.write(ip + "\n")
 
         attack_entries = [e for es in attacks.values() for e in es]
-        logger.info(
-            f"  {len(attack_entries)} baris anomali dari {len(attack_ips)} IP (baru digenerate)"
-        )
 
-    # Merge in-memory, file asli gak disentuh
     all_entries = normal_entries + attack_entries
     features = feature_engineering(all_entries)
     y_true = features["ip"].isin(attack_ips).astype(int).values
     n_normal = (y_true == 0).sum()
     n_anom = (y_true == 1).sum()
-    logger.info(f"  Total entries: {len(all_entries)}")
+
+    logger.info(f"\n[INFO] Data diproses : {len(all_entries)} baris log")
     logger.info(
-        f"  Total IP     : {len(features)} (normal={n_normal}, anomali={n_anom})"
+        f"[INFO] Total IP      : {len(features)} (Normal: {n_normal}, Anomali: {n_anom})"
     )
-    logger.info(f"  Attack IP: {y_true.sum()} — {', '.join(sorted(attack_ips))}")
 
-    # ---------- 1. IF-ONLY ----------
-    logger.info(f"\n{'='*60}")
-    logger.info("BAGIAN 1: ISOLATION FOREST (unsupervised)")
-    logger.info(f"{'='*60}")
-
-    logger.info(f"\n  Tuning contamination:")
-    logger.info(
-        f"  {'Contam':>8} {'TP':>4} {'FP':>4} {'FN':>4} {'Prec':>8} {'Recall':>8} {'F1':>8}"
-    )
-    logger.info(f"  {'-'*52}")
-
+    # ---------- 1. IF-ONLY TUNING (SILENT) ----------
     best_if = None
     for c in [0.01, 0.02, 0.03, 0.05, 0.08, 0.10, 0.15, 0.20]:
         r = detect_anomalies(features, contamination=c, api_score_boost=0.15)
         yp = (r["anomaly"].values == -1).astype(int)
         m = hitung(y_true, yp)
         m["c"] = c
-        logger.info(
-            f"  {c:>8.2f} {m['tp']:>4} {m['fp']:>4} {m['fn']:>4} {m['prec']:>8.4f} {m['rec']:>8.4f} {m['f1']:>8.4f}"
-        )
         if best_if is None or m["f1"] > best_if["f1"]:
             best_if = m
 
-    logger.info(
-        f"\n  → IF terbaik: contamination={best_if['c']:.2f}, F1={best_if['f1']:.4f}"
-    )
-
-    # IF final dengan API boost
     r_if = detect_anomalies(features, contamination=best_if["c"], api_score_boost=0.15)
     yp_if = (r_if["anomaly"].values == -1).astype(int)
     met_if = hitung(y_true, yp_if)
-    logger.info(f"\n  Confusion Matrix (IF-only, contamination={best_if['c']}):")
-    logger.info(f"  {'':>20} {'Pred Normal':>12} {'Pred Anomali':>12}")
-    logger.info(f"  {'Aktual Normal' :>20} {met_if['tn']:>12} {met_if['fp']:>12}")
-    logger.info(f"  {'Aktual Anomali':>20} {met_if['fn']:>12} {met_if['tp']:>12}")
 
     # ---------- 2. VARIASI WEIGHT ----------
-    logger.info(f"\n{'='*60}")
-    logger.info("BAGIAN 2: HYBRID — VARIASI WEIGHT MODEL:BEHAVIOR")
-    logger.info(f"{'='*60}")
+    logger.info(f"\n{'-'*75}")
+    logger.info("1. HASIL EVALUASI ISOLATION FOREST SAJA".center(75))
+    logger.info(f"{'-'*75}")
+    logger.info(f"Contamination optimal: {best_if['c']}")
+    logger.info(f"F1-Score IF-only     : {met_if['f1']:.4f}\n")
 
-    r_if = detect_anomalies(features, contamination=best_if["c"], api_score_boost=0.15)
+    logger.info(f"{'-'*75}")
+    logger.info("2. PERBANDINGAN BOBOT HYBRID (MODEL IF vs BEHAVIOR RULES)".center(75))
+    logger.info(f"{'-'*75}")
 
-    weights = [(100, 0), (80, 20), (60, 40), (50, 50), (40, 60), (20, 80), (0, 100)]
+    weights = [(70, 30), (60, 40), (50, 50), (40, 60), (30, 70)]
 
     logger.info(
-        f"\n  {'Weight M:B':>12} {'TP':>4} {'FP':>4} {'FN':>4} {'Prec':>8} {'Recall':>8} {'F1':>8}"
+        f"{'Bobot (IF:Rules)':<16} | {'TP':>4} | {'FP':>4} | {'FN':>4} | {'Precision':>9} | {'Recall':>9} | {'F1-Score':>9}"
     )
-    logger.info(f"  {'-'*56}")
+    logger.info("-" * 75)
 
     weight_results = []
     for wm, wb in weights:
@@ -659,26 +651,16 @@ if __name__ == "__main__":
         m["wb"] = wb
         weight_results.append(m)
         logger.info(
-            f"  {wm:>4}:{wb:<4} {m['tp']:>4} {m['fp']:>4} {m['fn']:>4} {m['prec']:>8.4f} {m['rec']:>8.4f} {m['f1']:>8.4f}"
+            f"{wm:>2}:{wb:<13} | {m['tp']:>4} | {m['fp']:>4} | {m['fn']:>4} | {m['prec']:>9.4f} | {m['rec']:>9.4f} | {m['f1']:>9.4f}"
         )
 
     best_w = max(weight_results, key=lambda x: x["f1"])
+    logger.info("-" * 75)
     logger.info(
-        f"\n  → Weight terbaik: {best_w['wm']}:{best_w['wb']} (F1={best_w['f1']:.4f})"
+        f"→ Bobot Paling Optimal: {best_w['wm']}:{best_w['wb']} (F1-Score = {best_w['f1']:.4f})"
     )
 
-    # ---------- 3. VARIASI THRESHOLD MEDIUM ----------
-    logger.info(f"\n{'='*60}")
-    logger.info(
-        f"BAGIAN 3: HYBRID — VARIASI THRESHOLD MEDIUM (weight {best_w['wm']}:{best_w['wb']})"
-    )
-    logger.info(f"{'='*60}")
-
-    logger.info(
-        f"\n  {'MEDIUM >=':>10} {'TP':>4} {'FP':>4} {'FN':>4} {'Prec':>8} {'Recall':>8} {'F1':>8}"
-    )
-    logger.info(f"  {'-'*56}")
-
+    # ---------- 3. THRESHOLD TUNING (SILENT) ----------
     thresholds = [30, 35, 40, 45, 50, 55, 60, 70]
     thresh_results = []
     for th in thresholds:
@@ -692,22 +674,10 @@ if __name__ == "__main__":
         m = hitung(y_true, yp)
         m["th"] = th
         thresh_results.append(m)
-        logger.info(
-            f"  {th:>10} {m['tp']:>4} {m['fp']:>4} {m['fn']:>4} {m['prec']:>8.4f} {m['rec']:>8.4f} {m['f1']:>8.4f}"
-        )
 
     best_th = max(thresh_results, key=lambda x: x["f1"])
-    logger.info(
-        f"\n  → Threshold MEDIUM terbaik: >= {best_th['th']} (F1={best_th['f1']:.4f})"
-    )
 
     # ---------- 4. CASCADE FINAL ----------
-    logger.info(f"\n{'='*60}")
-    logger.info(
-        f"BAGIAN 4: CASCADE FINAL (weight {best_w['wm']}:{best_w['wb']}, MEDIUM>={best_th['th']})"
-    )
-    logger.info(f"{'='*60}")
-
     r_risk = calculate_risk_custom(
         r_if,
         weight_model=best_w["wm"] / 100,
@@ -717,55 +687,28 @@ if __name__ == "__main__":
     yp_cascade = (r_risk["risk_category"].isin(["MEDIUM", "HIGH"])).astype(int)
     met_cascade = hitung(y_true, yp_cascade)
 
-    logger.info(f"\n  Confusion Matrix (Cascade IF → Risk Scoring):")
-    logger.info(f"  {'':>20} {'Pred Normal':>12} {'Pred Anomali':>12}")
-    logger.info(
-        f"  {'Aktual Normal' :>20} {met_cascade['tn']:>12} {met_cascade['fp']:>12}"
-    )
-    logger.info(
-        f"  {'Aktual Anomali':>20} {met_cascade['fn']:>12} {met_cascade['tp']:>12}"
-    )
-    logger.info(
-        f"\n  Precision: {met_cascade['prec']:.4f} ({met_cascade['prec']*100:.2f}%)"
-    )
-    logger.info(
-        f"  Recall:    {met_cascade['rec']:.4f} ({met_cascade['rec']*100:.2f}%)"
-    )
-    logger.info(f"  F1-Score:  {met_cascade['f1']:.4f} ({met_cascade['f1']*100:.2f}%)")
-    logger.info(
-        f"  Accuracy:  {met_cascade['acc']:.4f} ({met_cascade['acc']*100:.2f}%)"
-    )
+    logger.info(f"\n{'-'*75}")
+    logger.info(f"3. KESIMPULAN & HASIL AKHIR CASCADE".center(75))
+    logger.info(f"{'-'*75}")
+    logger.info(f"Konfigurasi Akhir:")
+    logger.info(f"  - Bobot Model vs Behavior : {best_w['wm']}:{best_w['wb']}")
+    logger.info(f"  - Threshold Medium        : >={best_th['th']}\n")
 
-    # Detail
+    logger.info(f"Metrik Akhir:")
+    logger.info(f"  - Precision : {met_cascade['prec']:.4f}")
+    logger.info(f"  - Recall    : {met_cascade['rec']:.4f}")
+    logger.info(f"  - F1-Score  : {met_cascade['f1']:.4f}")
+    logger.info(f"  - Accuracy  : {met_cascade['acc']:.4f}\n")
+
+    logger.info("Status Deteksi IP Anomali:")
+    logger.info(
+        f"{'IP Address':<20} | {'Risk':>6} | {'Cat':>8} | {'IF':>5} | {'Rules':>5} | {'Status Deteksi'}"
+    )
+    logger.info("-" * 75)
     gt = r_risk["ip"].isin(attack_ips)
-    logger.info(f"\n  Detail 20 IP anomali sintetik:")
-    logger.info(
-        f"  {'Status':>4} {'IP':<22} {'Risk':>6} {'Cat':>8} {'Beh':>4} {'Model':>8} {'Ket':>25}"
-    )
-    logger.info(f"  {'-'*77}")
     for _, row in r_risk[gt].sort_values("risk_score", ascending=False).iterrows():
-        det = "✓ TERDETEKSI" if yp_cascade[row.name] else "✗ LOLOS"
+        det = "TERDETEKSI" if yp_cascade[row.name] else "LOLOS"
         logger.info(
-            f"  {'✓' if yp_cascade[row.name] else '✗'} {row['ip']:<22} {row['risk_score']:>6.1f} {row['risk_category']:>8} {row['behavior_risk_score']:>4} {row['model_risk_score']:>8.1f} {det:>25}"
+            f"{row['ip']:<20} | {row['risk_score']:>6.1f} | {row['risk_category']:>8} | {row['model_risk_score']:>5.1f} | {row['behavior_risk_score']:>5.1f} | {det}"
         )
-
-    # ---------- REKAP ----------
-    logger.info(f"\n{'='*60}")
-    logger.info("REKAPITULASI AKHIR")
-    logger.info(f"{'='*60}")
-    logger.info(
-        f"\n  {'Metode':<45} {'Prec':>8} {'Recall':>8} {'F1':>8} {'TP':>4} {'FP':>4}"
-    )
-    logger.info(f"  {'-'*77}")
-    logger.info(
-        f"  {'1. IF-only (7 fitur per-IP)':<45} {met_if['prec']:>8.4f} {met_if['rec']:>8.4f} {met_if['f1']:>8.4f} {met_if['tp']:>4} {met_if['fp']:>4}"
-    )
-    logger.info(
-        f"  {'2. Cascade IF→Risk Scoring':<45} {met_cascade['prec']:>8.4f} {met_cascade['rec']:>8.4f} {met_cascade['f1']:>8.4f} {met_cascade['tp']:>4} {met_cascade['fp']:>4}"
-    )
-    logger.info(f"\n  Konfigurasi optimal:")
-    logger.info(f"    Contamination (IF-only)       : {best_if['c']}")
-    logger.info(f"    Weight Model                  : {best_w['wm']}")
-    logger.info(f"    Weight Behavior               : {best_w['wb']}")
-    logger.info(f"    Threshold MEDIUM              : >= {best_th['th']}")
-    logger.info(f"\n✅ Selesai")
+    logger.info("=" * 75)
