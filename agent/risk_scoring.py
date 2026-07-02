@@ -46,8 +46,8 @@ import pandas as pd
 logger = logging.getLogger(__name__)
 
 # Bobot formula hybrid
-WEIGHT_MODEL = 0.6
-WEIGHT_BEHAVIOR = 0.4
+WEIGHT_MODEL = 0.5
+WEIGHT_BEHAVIOR = 0.5
 
 # Batas kategorisasi
 THRESHOLD_HIGH = 70
