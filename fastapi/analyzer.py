@@ -38,7 +38,6 @@ from sklearn.preprocessing import RobustScaler
 logger = logging.getLogger(__name__)
 
 # Pola-pola Indikator Kompromi (IoC) di URL dan User-Agent
-# Untuk perbandingan
 # Referensi: Chua et al. (2024) — URI_occurrences, IOC_occurrences
 IOC_PATTERNS = [
     r"(?:%27|%22|%3C|%3E|%3D|%3B)",
@@ -105,25 +104,6 @@ MODEL_FEATURE_COLS = [
     "request_per_second",
     "unique_endpoint_ratio",
 ]
-
-
-def _detect_ioc(text: str) -> bool:
-    """Cek apakah string mengandung pola Indikator Kompromi."""
-    if not text:
-        return False
-    return bool(IOC_REGEX.search(text))
-
-
-def _is_suspicious_ua(ua: str) -> bool:
-    """Cek apakah User-Agent mencurigakan (headless, empty, scan tool)."""
-    if not ua or not ua.strip():
-        return True
-    return bool(SUSPICIOUS_UA_REGEX.search(ua))
-
-
-# ============================================================
-# FITUR TAMBAHAN PER-IP (dari agregasi raw request)
-# ============================================================
 
 
 def feature_engineering(log_entries: list[dict]) -> pd.DataFrame:
@@ -204,117 +184,6 @@ def feature_engineering(log_entries: list[dict]) -> pd.DataFrame:
     return result
 
 
-# ============================================================
-# DETEKSI PER-REQUEST (seperti paper Chua et al. 2024) Untuk perbandingan
-# ============================================================
-
-REQUEST_FEATURE_COLS = [
-    "url_length",
-    "response_size_kb",
-    "ua_length",
-    "has_ioc",
-    "has_suspicious_ua",
-    "hour_sin",
-    "hour_cos",
-    "method_get",
-    "method_post",
-    "status_2xx",
-    "status_3xx",
-    "status_4xx",
-    "status_5xx",
-    "uri_log_freq",
-    "ua_log_freq",
-    "uri_length_ratio",
-]
-
-
-def _compute_global_frequencies(df: pd.DataFrame) -> tuple:
-    uri_freq = df.groupby("url")["ip"].transform("count")
-    ua_freq = df.groupby("user_agent")["ip"].transform("count")
-    return uri_freq, ua_freq
-
-
-def feature_engineering_request_level(log_entries: list[dict]) -> pd.DataFrame:
-    """Fitur per-request. Setiap baris = 1 sampel (mirip paper Chua et al. 2024)."""
-    if not log_entries:
-        return pd.DataFrame()
-
-    df = pd.DataFrame(log_entries)
-    result = df[["ip", "url", "user_agent"]].copy()
-
-    uri_freq, ua_freq = _compute_global_frequencies(df)
-    result["uri_log_freq"] = np.log1p(uri_freq.values)
-    result["ua_log_freq"] = np.log1p(ua_freq.values)
-
-    result["url_length"] = df["url_length"].values
-    result["ua_length"] = df["user_agent"].str.len().values
-    mean_ul = df["url_length"].mean() + 1
-    result["uri_length_ratio"] = df["url_length"] / mean_ul
-
-    result["response_size_kb"] = (df["size"] / 1024).values
-    result["has_ioc"] = df["url"].apply(_detect_ioc).astype(int)
-    result["has_suspicious_ua"] = df["user_agent"].apply(_is_suspicious_ua).astype(int)
-
-    s = df["status"]
-    result["status_2xx"] = ((s >= 200) & (s < 300)).astype(int)
-    result["status_3xx"] = ((s >= 300) & (s < 400)).astype(int)
-    result["status_4xx"] = ((s >= 400) & (s < 500)).astype(int)
-    result["status_5xx"] = (s >= 500).astype(int)
-
-    m = df["method"].str.upper()
-    result["method_get"] = (m == "GET").astype(int)
-    result["method_post"] = (m == "POST").astype(int)
-
-    h = df["hour"].values
-    result["hour_sin"] = np.sin(2 * np.pi * h / 24)
-    result["hour_cos"] = np.cos(2 * np.pi * h / 24)
-
-    logger.info(
-        "Request-level features: %d entries, %d cols", len(result), len(result.columns)
-    )
-    return result
-
-
-def detect_anomalies_request_level(
-    request_features: pd.DataFrame,
-    contamination: float = 0.03,
-    n_estimators: int = 200,
-    max_samples: float = 0.25,
-) -> pd.DataFrame:
-    """IF per-request (parameter sesuai paper Chua et al. 2024)."""
-    if request_features.empty:
-        return request_features
-
-    X = request_features[REQUEST_FEATURE_COLS].copy()
-    scaler = RobustScaler()
-    X_scaled = scaler.fit_transform(X)
-
-    model = IsolationForest(
-        n_estimators=n_estimators,
-        contamination=contamination,
-        max_samples=max_samples,
-        random_state=42,
-    )
-    model.fit(X_scaled)
-
-    raw_scores = model.decision_function(X_scaled)
-    predictions = model.predict(X_scaled)
-
-    result = request_features.copy()
-    result["req_anomaly_raw"] = raw_scores
-    result["req_anomaly"] = predictions
-
-    anom = int((predictions == -1).sum())
-    logger.info(
-        "Request-level IF: %d/%d anomalous (%.2f%%)",
-        anom,
-        len(result),
-        100 * anom / len(result),
-    )
-    return result
-
-
-# ============================================================
 def _adjust_scores_for_known_clients(
     features: pd.DataFrame,
     scores: np.ndarray,
