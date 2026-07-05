@@ -41,16 +41,16 @@ logger = logging.getLogger(__name__)
 # Untuk perbandingan
 # Referensi: Chua et al. (2024) — URI_occurrences, IOC_occurrences
 IOC_PATTERNS = [
-    r"(%27|%22|%3C|%3E|%3D|%3B)",
-    r"\b(union\s+select|select\s+.*\s+from|insert\s+into|drop\s+table)",
-    r"(--|#|;)\s*$",
-    r"(<script|alert\(|onerror=|onload=|onclick=|javascript:)",
-    r"(%3Cscript|%3E%3C|%3Ciframe)",
-    r"(\.\./|\.\.\\){2,}",
-    r"(/etc/passwd|/proc/self|/boot/grub|/windows/system32)",
-    r"(cmd=|exec=|eval=|system\(|passthru\(|shell_exec)",
-    r"(`.*`|\$\(.*\))",
-    r"(\x00|\x04|\x08|\x0d|\x1b|\x7f)",
+    r"(?:%27|%22|%3C|%3E|%3D|%3B)",
+    r"\b(?:union\s+select|select\s+.*\s+from|insert\s+into|drop\s+table)",
+    r"(?:--|#|;)\s*$",
+    r"(?:<script|alert\(|onerror=|onload=|onclick=|javascript:)",
+    r"(?:%3Cscript|%3E%3C|%3Ciframe)",
+    r"(?:\.\./|\.\.\\){2,}",
+    r"(?:/etc/passwd|/proc/self|/boot/grub|/windows/system32)",
+    r"(?:cmd=|exec=|eval=|system\(|passthru\(|shell_exec)",
+    r"(?:`.*`|\$\(.*\))",
+    r"(?:\x00|\x04|\x08|\x0d|\x1b|\x7f)",
 ]
 IOC_REGEX = re.compile("|".join(IOC_PATTERNS), re.IGNORECASE)
 
@@ -61,8 +61,8 @@ SUSPICIOUS_UA_PATTERNS = [
     # r"^[A-Z]+/\d+\.\d+",
     # r"curl/\d+",
     # r"Wget/\d+",
-    # r"(Go-http-client|okhttp|axios|aiohttp|httpx|requests)",
-    r"(masscan|nmap|zgrab|Nikto|sqlmap|acunetix|dirb|gobuster|hydra)",
+    # r"(?:Go-http-client|okhttp|axios|aiohttp|httpx|requests)",
+    r"(?:masscan|nmap|zgrab|Nikto|sqlmap|acunetix|dirb|gobuster|hydra)",
 ]
 SUSPICIOUS_UA_REGEX = re.compile("|".join(SUSPICIOUS_UA_PATTERNS), re.IGNORECASE)
 
