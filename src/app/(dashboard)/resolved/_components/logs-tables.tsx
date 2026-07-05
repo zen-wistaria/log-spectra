@@ -188,11 +188,14 @@ export function LogsTable() {
               id: false,
               "agent-ip": false,
               "agent-hostname": false,
-              agent_id: false,
               request_count: false,
               error_count: false,
-              request_per_second: false,
+              avg_response_size: false,
+              response_size_std: false,
+              error_rate: false,
               unique_endpoint_ratio: false,
+              avg_url_length: false,
+              request_per_second: false,
             }}
             defaultSorting={[{ id: "resolved_at", desc: true }]}
             enableSearch={true}

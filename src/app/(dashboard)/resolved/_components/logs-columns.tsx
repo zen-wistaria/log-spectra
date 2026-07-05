@@ -4,17 +4,27 @@ import type { Agents, AnomalyLogs } from "@prisma/client";
 import type { ColumnDef } from "@tanstack/react-table";
 import { AlertTriangle, ShieldAlert, ShieldCheck } from "lucide-react";
 import Link from "next/link";
-// import type { GroupedAnomalyItem } from "@/actions/anomalies";
 import { DataTableColumnHeader } from "@/components/data-tables/data-table-column-header";
+import { DateCell } from "@/components/data-tables/date-cell";
 import { Badge } from "@/components/ui/badge";
 import { formatDateTime } from "@/lib/utils";
 import CellActions from "./logs-cell-actions";
 
-export type IColumns = AnomalyLogs & {
-  agent: Agents;
-};
+export type IColumns = AnomalyLogs & { agent: Agents };
 
 export const getColumns = (): ColumnDef<IColumns>[] => [
+  {
+    id: "id",
+    accessorKey: "id",
+    meta: {
+      label: "ID",
+    },
+    cell: ({ row }) => <div className="text-xs">{row.original.id}</div>,
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} title="ID" />
+    ),
+    enableHiding: true,
+  },
   {
     id: "resolved_at",
     accessorKey: "resolved_at",
@@ -75,8 +85,8 @@ export const getColumns = (): ColumnDef<IColumns>[] => [
     enableHiding: false,
   },
   {
-    id: "agents",
-    accessorKey: "agents",
+    id: "agent-name",
+    accessorKey: "agent-name",
     meta: {
       label: "Agents",
     },
@@ -169,6 +179,82 @@ export const getColumns = (): ColumnDef<IColumns>[] => [
       <div className="text-xs">{row.original.unique_endpoint_ratio}</div>
     ),
     enableHiding: false,
+  },
+  {
+    id: "error_rate",
+    accessorKey: "error_rate",
+    meta: {
+      label: "Error Rate",
+    },
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} title="Error Rate" />
+    ),
+    cell: ({ row }) => <div className="text-xs">{row.original.error_rate}</div>,
+  },
+  {
+    id: "avg_response_size",
+    accessorKey: "avg_response_size",
+    meta: {
+      label: "Avg Resp Size",
+    },
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} title="Avg Resp Size" />
+    ),
+    cell: ({ row }) => (
+      <div className="text-xs">{row.original.avg_response_size}</div>
+    ),
+  },
+  {
+    id: "response_size_std",
+    accessorKey: "response_size_std",
+    meta: {
+      label: "Resp Std",
+    },
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} title="Resp Std" />
+    ),
+    cell: ({ row }) => (
+      <div className="text-xs">{row.original.response_size_std}</div>
+    ),
+  },
+  {
+    id: "avg_url_length",
+    accessorKey: "avg_url_length",
+    meta: {
+      label: "Avg URL Len",
+    },
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} title="Avg URL Len" />
+    ),
+    cell: ({ row }) => (
+      <div className="text-xs">{row.original.avg_url_length}</div>
+    ),
+  },
+  {
+    id: "model_risk_score",
+    accessorKey: "model_risk_score",
+    meta: {
+      label: "Model Score",
+    },
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} title="Model Score" />
+    ),
+    cell: ({ row }) => (
+      <div className="text-xs">{row.original.model_risk_score}</div>
+    ),
+  },
+  {
+    id: "behavior_risk_score",
+    accessorKey: "behavior_risk_score",
+    meta: {
+      label: "Behavior Score",
+    },
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} title="Behavior Score" />
+    ),
+    cell: ({ row }) => (
+      <div className="text-xs">{row.original.behavior_risk_score}</div>
+    ),
   },
   {
     id: "risk_score",

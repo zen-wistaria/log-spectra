@@ -189,6 +189,14 @@ export function LogsTable({ ip }: { ip?: string } = {}) {
               id: false,
               "agent-ip": false,
               "agent-hostname": false,
+              request_count: false,
+              error_count: false,
+              avg_response_size: false,
+              response_size_std: false,
+              error_rate: false,
+              unique_endpoint_ratio: false,
+              avg_url_length: false,
+              request_per_second: false,
             }}
             defaultSorting={[{ id: "updated_at", desc: true }]}
             enableSearch={true}
