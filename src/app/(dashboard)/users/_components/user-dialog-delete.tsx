@@ -1,9 +1,9 @@
 "use client";
 
-import { Loader2 } from "lucide-react";
+import { AlertTriangleIcon, Loader2 } from "lucide-react";
 import {
   AlertDialog,
-  AlertDialogAction,
+  // AlertDialogAction,
   AlertDialogCancel,
   AlertDialogContent,
   AlertDialogDescription,
@@ -11,6 +11,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { Button } from "@/components/ui/button";
 import { useDeleteUser } from "@/query/user.query";
 
 interface UserDeleteDialogProps {
@@ -40,7 +41,10 @@ export default function UserDeleteDialog({
     <AlertDialog open={open} onOpenChange={onOpenChange}>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+          <AlertDialogTitle className="flex items-center gap-2 text-destructive">
+            <AlertTriangleIcon className="h-5 w-5" />
+            Are you absolutely sure?
+          </AlertDialogTitle>
           <AlertDialogDescription>
             This action cannot be undone. This will permanently delete user{" "}
             <strong>{userName}</strong> from the server.
@@ -48,17 +52,19 @@ export default function UserDeleteDialog({
         </AlertDialogHeader>
         <AlertDialogFooter>
           <AlertDialogCancel disabled={isPending}>Cancel</AlertDialogCancel>
-          <AlertDialogAction
+          {/* <AlertDialogAction asChild> */}
+          <Button
             onClick={(e: React.MouseEvent<HTMLButtonElement>) => {
               e.preventDefault();
               handleDelete();
             }}
             disabled={isPending}
-            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            variant="destructive"
           >
             {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             Delete
-          </AlertDialogAction>
+          </Button>
+          {/* </AlertDialogAction> */}
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>
