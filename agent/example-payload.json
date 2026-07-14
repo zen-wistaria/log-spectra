@@ -2,43 +2,56 @@
   "machine_id": "89d011104e5f4840b9008671c47994e7",
   "version": "1.0.0",
   "os": "Linux Ubuntu 22.04",
-  "hostname": "server-01",
-  "ip_address": "192.168.20.100",
+  "hostname": "smartkel-v2",
+  "ip_address": "103.148.79.233",
   "timestamp": "2026-03-03T03:10:00Z",
   "results": [
     {
       "ip": "185.16.39.146",
       "request_count": 240,
       "error_count": 60,
+      "error_rate": 0.25,
+      "avg_response_size": 1024.5,
+      "response_size_std": 256.75,
+      "avg_url_length": 85.3,
+      "has_ioc": true,
+      "has_susp_ua": false,
       "request_per_second": 12.5,
       "unique_endpoint_ratio": 0.9,
-      "risk_score": 87,
+      "anomaly_score": -0.124,
+      "model_risk_score": 72.5,
+      "behavior_risk_score": 85,
+      "risk_score": 77.5,
       "risk_category": "HIGH",
       "risk_reasons": [
-        "Burst traffic",
-        "High error rate",
-        "High endpoint variation"
+        "Burst traffic (12.50 req/s > 5.0)",
+        "High error rate (25.0% > 30%, n=240)",
+        "High endpoint variation (0.90 > 0.7, n=240)",
+        "IoC detected (SQLi/XSS/Path Traversal/etc)"
       ]
-    },
-    {
-      "ip": "10.51.51.42",
-      "request_count": 15,
-      "error_count": 0,
-      "request_per_second": 0.5,
-      "unique_endpoint_ratio": 0.3,
-      "risk_score": 12,
-      "risk_category": "LOW",
-      "risk_reasons": ["Normal pattern"]
     },
     {
       "ip": "192.168.1.100",
       "request_count": 85,
       "error_count": 25,
+      "error_rate": 0.294,
+      "avg_response_size": 512.75,
+      "response_size_std": 64.2,
+      "avg_url_length": 72.8,
+      "has_ioc": false,
+      "has_susp_ua": true,
       "request_per_second": 3.2,
       "unique_endpoint_ratio": 0.75,
-      "risk_score": 55,
+      "anomaly_score": -0.045,
+      "model_risk_score": 48.3,
+      "behavior_risk_score": 55,
+      "risk_score": 51.5,
       "risk_category": "MEDIUM",
-      "risk_reasons": ["High error rate", "High endpoint variation"]
+      "risk_reasons": [
+        "High error rate (29.4% > 30%, n=85)",
+        "High endpoint variation (0.75 > 0.7, n=85)",
+        "Suspicious User-Agent (Scanner/Bot)"
+      ]
     }
   ]
 }
