@@ -9,7 +9,7 @@ Access Log → LogReader → Feature Engineering (7 fitur per IP)
                                          ↓
                               Isolation Forest → anomaly_score (~ -0.15 s.d 0.30)
                                          ↓
-                              Hybrid Risk Scoring (60% model + 40% behavior rules)
+                              Hybrid Risk Scoring (50% model + 50% behavior rules)
                                          ↓
                               Cascade: risk_score >= min_risk_score_to_send (default 60) → kirim ke server
                               (risk scoring dihitung untuk SEMUA IP, bukan hanya yg anomali IF)
@@ -18,7 +18,7 @@ Access Log → LogReader → Feature Engineering (7 fitur per IP)
 ## Alur Deteksi (3 Lapisan)
 
 1. **Isolation Forest** → label semua IP: -1 (anomali) / +1 (normal)
-2. **Risk Scoring** (semua IP) → model_risk × 60% + behavior_risk × 40% → risk_score 0-100
+2. **Risk Scoring** (semua IP) → model_risk × 50% + behavior_risk × 50% → risk_score 0-100
 3. **Filter** → hanya IP dengan risk_score >= `min_risk_score_to_send` (default: 60) dikirim ke server via `build_payload()`
 
 **Mengapa risk scoring dihitung untuk semua IP?** Karena behavior rules bisa mendeteksi IP yang lolos IF. Contoh: IP dengan error_rate 92% tapi anomaly_score -0.0133 (IF bilang normal) → behavior rules trigger → risk_score 64.2 → MEDIUM.
@@ -34,7 +34,7 @@ Python agent yg di-deploy ke server web yg dimonitor. Baca nginx `access.log` in
 2. `LogAccumulator` — persist raw lines ke `.accumulated`, trim otomatis kalo > max ukuran. Juga punya `read_tail_lines(n)` untuk restore buffer dari N lines terakhir (tanpa load full file).
 3. `feature_engineering()` — ekstrak 7 fitur per IP: request_count, error_rate, avg_response_size, response_size_std, avg_url_length, request_per_second, unique_endpoint_ratio
 4. `detect_anomalies()` — RobustScaler → Isolation Forest → threshold percentile-adjusted → label anomali
-5. `calculate_risk()` — hybrid scoring: 60% model_risk + 40% behavior_risk. Kategori: LOW (<40), MEDIUM (40-69), HIGH (≥70). **Cascade boost:** behavior >= 20 → minimal MEDIUM.
+5. `calculate_risk()` — hybrid scoring: 50% model_risk + 50% behavior_risk. Kategori: LOW (<40), MEDIUM (40-69), HIGH (≥70). **Cascade boost:** behavior >= 20 → minimal MEDIUM.
 6. `build_payload()` — filter IP berdasarkan threshold `min_risk_score_to_send` (misal 60), urutkan berdasarkan risk_score tertinggi, lalu kirim ke server
 7. `_http_post()` — kirim hasil via HTTP POST dengan Bearer token (Bearer auth), retry + exponential backoff
 8. `_heartbeat_loop()` — thread terpisah, kirim heartbeat periodik (default tiap 5 menit)
@@ -124,7 +124,7 @@ Service opsional untuk analisis log manual (tidak simpan ke DB). Upload file .lo
 
 **Hybrid Risk Scoring:**
 ```
-risk_score = (0.6 × model_risk) + (0.4 × behavior_risk)
+risk_score = (0.5 × model_risk) + (0.5 × behavior_risk)
 ```
 - `model_risk` = min-max normalisasi anomaly_score ke 0-100 (score paling negatif = 100)
 - `behavior_risk` = rule-based 0-100
@@ -151,7 +151,7 @@ risk_score = (0.6 × model_risk) + (0.4 × behavior_risk)
 
 ### Konfigurasi Optimal (empiris)
 - Contamination: **0.08**
-- Weight Model:Behavior: **60:40** (diuji 7 variasi: 100:0 s.d 0:100)
+- Weight Model:Behavior: **50:50** (diuji 7 variasi: 100:0 s.d 0:100)
 - Threshold MEDIUM: >= **45**
 - Threshold HIGH: >= 70
 

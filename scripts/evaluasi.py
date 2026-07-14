@@ -20,6 +20,9 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "agent"))
 
 import pandas as pd
 import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+from sklearn.metrics import confusion_matrix
 from log_reader import parse_log_line
 from analyzer import feature_engineering, detect_anomalies
 from risk_scoring import _calculate_behavior_score
@@ -502,7 +505,7 @@ def calculate_risk_custom(
     result,
     weight_model=0.6,
     weight_behavior=0.4,
-    threshold_medium=40,
+    threshold_medium=45,
     threshold_high=70,
 ):
     """Risk scoring dengan parameter weight & threshold yang bisa diubah."""
@@ -636,14 +639,14 @@ if __name__ == "__main__":
     weights = [(70, 30), (60, 40), (50, 50), (40, 60), (30, 70)]
 
     logger.info(
-        f"{'Bobot (IF:Rules)':<16} | {'TP':>4} | {'FP':>4} | {'FN':>4} | {'Precision':>9} | {'Recall':>9} | {'F1-Score':>9}"
+        f"{'Bobot (IF:Rules)':<16} | {'TP':>4} | {'TN':>4} | {'FP':>4} | {'FN':>4} | {'Precision':>9} | {'Recall':>9} | {'F1-Score':>9}"
     )
-    logger.info("-" * 75)
+    logger.info("-" * 82)
 
     weight_results = []
     for wm, wb in weights:
         r_risk = calculate_risk_custom(
-            r_if, weight_model=wm / 100, weight_behavior=wb / 100, threshold_medium=40
+            r_if, weight_model=wm / 100, weight_behavior=wb / 100, threshold_medium=45
         )
         yp = (r_risk["risk_category"].isin(["MEDIUM", "HIGH"])).astype(int)
         m = hitung(y_true, yp)
@@ -651,16 +654,25 @@ if __name__ == "__main__":
         m["wb"] = wb
         weight_results.append(m)
         logger.info(
-            f"{wm:>2}:{wb:<13} | {m['tp']:>4} | {m['fp']:>4} | {m['fn']:>4} | {m['prec']:>9.4f} | {m['rec']:>9.4f} | {m['f1']:>9.4f}"
+            f"{wm:>2}:{wb:<13} | {m['tp']:>4} | {m['tn']:>4} | {m['fp']:>4} | {m['fn']:>4} | {m['prec']:>9.4f} | {m['rec']:>9.4f} | {m['f1']:>9.4f}"
         )
 
     best_w = max(weight_results, key=lambda x: x["f1"])
-    logger.info("-" * 75)
+    logger.info("-" * 82)
     logger.info(
         f"→ Bobot Paling Optimal: {best_w['wm']}:{best_w['wb']} (F1-Score = {best_w['f1']:.4f})"
     )
 
-    # ---------- 3. THRESHOLD TUNING (SILENT) ----------
+    # ---------- 3. THRESHOLD TUNING ----------
+    logger.info(f"\n{'-'*75}")
+    logger.info("3. PENCARIAN THRESHOLD OPTIMAL".center(75))
+    logger.info(f"{'-'*75}")
+    logger.info(f"Menggunakan Bobot Terbaik = {best_w['wm']}:{best_w['wb']}")
+    logger.info(
+        f"{'Threshold':<16} | {'TP':>4} | {'TN':>4} | {'FP':>4} | {'FN':>4} | {'Precision':>9} | {'Recall':>9} | {'F1-Score':>9}"
+    )
+    logger.info("-" * 82)
+
     thresholds = [30, 35, 40, 45, 50, 55, 60, 70]
     thresh_results = []
     for th in thresholds:
@@ -674,8 +686,15 @@ if __name__ == "__main__":
         m = hitung(y_true, yp)
         m["th"] = th
         thresh_results.append(m)
+        logger.info(
+            f"{th:<16} | {m['tp']:>4} | {m['tn']:>4} | {m['fp']:>4} | {m['fn']:>4} | {m['prec']:>9.4f} | {m['rec']:>9.4f} | {m['f1']:>9.4f}"
+        )
 
     best_th = max(thresh_results, key=lambda x: x["f1"])
+    logger.info("-" * 82)
+    logger.info(
+        f"→ Threshold Paling Optimal: >={best_th['th']} (F1-Score = {best_th['f1']:.4f})"
+    )
 
     # ---------- 4. CASCADE FINAL ----------
     r_risk = calculate_risk_custom(
@@ -688,17 +707,21 @@ if __name__ == "__main__":
     met_cascade = hitung(y_true, yp_cascade)
 
     logger.info(f"\n{'-'*75}")
-    logger.info(f"3. KESIMPULAN & HASIL AKHIR CASCADE".center(75))
+    logger.info(f"4. KESIMPULAN & HASIL AKHIR CASCADE".center(75))
     logger.info(f"{'-'*75}")
     logger.info(f"Konfigurasi Akhir:")
     logger.info(f"  - Bobot Model vs Behavior : {best_w['wm']}:{best_w['wb']}")
     logger.info(f"  - Threshold Medium        : >={best_th['th']}\n")
 
     logger.info(f"Metrik Akhir:")
-    logger.info(f"  - Precision : {met_cascade['prec']:.4f}")
-    logger.info(f"  - Recall    : {met_cascade['rec']:.4f}")
-    logger.info(f"  - F1-Score  : {met_cascade['f1']:.4f}")
-    logger.info(f"  - Accuracy  : {met_cascade['acc']:.4f}\n")
+    logger.info(f"  - True Positive (TP)  : {met_cascade['tp']}")
+    logger.info(f"  - False Positive (FP) : {met_cascade['fp']}")
+    logger.info(f"  - True Negative (TN)  : {met_cascade['tn']}")
+    logger.info(f"  - False Negative (FN) : {met_cascade['fn']}")
+    logger.info(f"  - Precision           : {met_cascade['prec']:.4f}")
+    logger.info(f"  - Recall              : {met_cascade['rec']:.4f}")
+    logger.info(f"  - F1-Score            : {met_cascade['f1']:.4f}")
+    logger.info(f"  - Accuracy            : {met_cascade['acc']:.4f}\n")
 
     logger.info("Status Deteksi IP Anomali:")
     logger.info(
@@ -712,3 +735,70 @@ if __name__ == "__main__":
             f"{row['ip']:<20} | {row['risk_score']:>6.1f} | {row['risk_category']:>8} | {row['model_risk_score']:>5.1f} | {row['behavior_risk_score']:>5.1f} | {det}"
         )
     logger.info("=" * 75)
+
+    # ---------- 5. VISUALISASI HEATMAP ----------
+    logger.info("\n[INFO] Membuat visualisasi heatmap...")
+
+    # 1. Heatmap Confusion Matrix
+    cm = confusion_matrix(y_true, yp_cascade)
+    plt.figure(figsize=(8, 6))
+    sns.heatmap(
+        cm,
+        annot=True,
+        fmt="d",
+        cmap="Blues",
+        xticklabels=["Normal", "Anomaly"],
+        yticklabels=["Normal", "Anomaly"],
+    )
+    plt.title("Confusion Matrix")
+    plt.xlabel("Predicted Label")
+    plt.ylabel("True Label")
+    plt.tight_layout()
+    plt.savefig("heatmap_confusion_matrix.png", dpi=300)
+    plt.close()
+
+    # 2. Heatmap Distribusi Skor (Model vs Behavior)
+    import matplotlib.colors as mcolors
+
+    plt.figure(figsize=(10, 8))
+    df_plot = r_risk.copy()
+    df_plot["Label"] = ["Anomaly" if val == 1 else "Normal" for val in y_true]
+
+    df_normal = df_plot[df_plot["Label"] == "Normal"]
+    df_anomaly = df_plot[df_plot["Label"] == "Anomaly"]
+
+    # Plot heatmap kepadatan untuk data NORMAL dengan log-scale
+    # Log-scale membuat dominasi normal terlihat jelas tapi area jarangnya tetap nampak
+    h = plt.hist2d(
+        df_normal["model_risk_score"],
+        df_normal["behavior_risk_score"],
+        bins=40,
+        cmap="Blues",
+        norm=mcolors.LogNorm(),
+        cmin=1,  # Sembunyikan grid yang kosong
+    )
+    plt.colorbar(h[3], label="Log10(Count) - Normal Data")
+
+    # Plot data ANOMALY murni sebagai titik agar posisinya terlihat
+    # tanpa memanipulasi kepadatannya (tidak mendominasi area visual)
+    plt.scatter(
+        df_anomaly["model_risk_score"],
+        df_anomaly["behavior_risk_score"],
+        color="red",
+        marker="x",
+        s=40,  # ukuran titik
+        alpha=0.9,
+        label="Anomaly Points",
+    )
+
+    plt.legend()
+    plt.title("Distribution Heatmap")
+    plt.xlabel("Model Risk Score (Isolation Forest)")
+    plt.ylabel("Behavior Risk Score (Rules)")
+    plt.tight_layout()
+    plt.savefig("heatmap_score_distribution.png", dpi=300)
+    plt.close()
+
+    logger.info(
+        "[INFO] Visualisasi berhasil disimpan: heatmap_confusion_matrix.png & heatmap_score_distribution.png"
+    )
