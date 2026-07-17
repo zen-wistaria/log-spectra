@@ -32,3 +32,11 @@ report.[0-9]_.[0-9]_.[0-9]_.[0-9]_.json
 
 # Finder (MacOS) folder config
 .DS_Store
+
+agent
+ai_md
+datasheet
+fastapi
+.env.agent*
+.next
+next-env*
